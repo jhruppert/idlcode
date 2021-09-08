@@ -1,2 +1,3 @@
 # idlcode
-Where my IDL code is stored
+
+James' IDL code from various projects is stored here.

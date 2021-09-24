@@ -33,13 +33,15 @@ cases=['ncrf_84h','ncrf_72h','ncrf_60h','ncrf_48h','ncrf_36h']
 cases=['ctl',reverse(['ncrf_36h','ncrf_48h','ncrf_60h','ncrf_72h','ncrf_84h','ncrf_96h','lwcrf'])];,'axisym']
 ;PAPER SELECTION
   cases=['ctl',reverse(['ncrf_36h','ncrf_60h','ncrf_96h','lwcrf'])];,'axisym']
+  cases=['ctl',reverse(['ncrf_60h','ncrf_96h','lwcrf'])];,'axisym']
+cases=['ctl','ncrf_36h']
 ;FOR RAINFALL PDF
-cases=['ctl','lwcrf','ncrf_36h'];,'ncrf_96h']
+;cases=['ctl','lwcrf','ncrf_36h'];,'ncrf_96h']
 ;HAIYAN
 if strmatch(subdir,'*haiy*') then $
   cases=['ctl',reverse(['hncrf_36h','hncrf_60h','hncrf_96h'])]
-cases=['ctl','ncrf_36h']
-cases=['ctl','axisym']
+;cases=['ctl','ncrf_36h']
+;cases=['ctl','axisym']
 
 
 print,'CASES: ',cases

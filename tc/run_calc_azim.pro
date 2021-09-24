@@ -54,7 +54,7 @@ else $
 ;    vars_sel=['U','V','QVAPOR','T']
 
 ;vars_sel=['SLP','PW','OLR','OLRC','QVAPOR','QCLOUD','QICE','rainrate','U10','V10','H_DIABATIC','RTHRATSW','RTHRATLW']
-vars_sel=['H_DIABATIC','RTHRATLWC','RTHRATLW','U','V','W','T']
+vars_sel=['RTHRATLWC','RTHRATSWC']
 
 ;----TIME SPECS--------------------
 

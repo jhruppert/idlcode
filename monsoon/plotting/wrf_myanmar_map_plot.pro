@@ -85,10 +85,10 @@ pro wrf_myanmar_map_plot, dirs, var, lon, lat, figspecs, $
 
   ;CROSS SECTIONS
 ;  if keyword_set(cross) then $
-;  xcross=[77.8,96.2] -13. ; lon,lat
-;  ycross=[12.,21.5] - 2.5  ; lon,lat
+;  xcross=[77.8,96.2]; -13. ; lon,lat
+;  ycross=[12.,21.5] ;- 2.5  ; lon,lat
 ;  cross=[xcross,ycross]
-;    plots,cross[0:1],cross[2:3],linestyle=1,thick=2,/data
+;    plots,cross[0:1],cross[2:3],linestyle=2,thick=2,/data
 
   ;PLOT BOX
     if keyword_set(box) then begin
@@ -154,7 +154,7 @@ bounds=[69.5,8.,77.5,20.] ; Western Ghats
 ;    if strmatch(figspecs.figname,'*wspd*') then setlevs=strtrim(figspecs.levels,2) else setlevs=''
 ;    if strmatch(figspecs.figname,'*rainrate*') then setlevs=strtrim(figspecs.levels,2) else setlevs=''
     colorbar2, colors=figspecs.colors, range=[min(figspecs.levels),max(figspecs.levels)],divisions=figspecs.ndivs,$
-      charsize=csize, position=cpos, /right, /vertical, title=figspecs.cbar_tag,$
+      charsize=csize*0.7, position=cpos, /right, /vertical, title=figspecs.cbar_tag,$
       annotatecolor='black',format=figspecs.cbar_format,$
       setlevels=setlevs
     loadct,0,/silent

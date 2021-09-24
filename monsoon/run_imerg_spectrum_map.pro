@@ -28,8 +28,8 @@ do_jjas=1 ; subset to JJAS?
   yy_plot=[2000,2020]
   mm_plot=[6,12]
   dd_plot=[1,31] ; inclusive
-yy_plot[0]=2001
-mm_plot[0]=1
+;yy_plot[0]=2001
+;mm_plot[0]=1
 ;   yy_plot=[2013,2017]
 ;   mm_plot=[1,12]
 ;   dd_plot=[1,31] ; inclusive
@@ -206,8 +206,9 @@ segdt=segp
     segdt=transpose(temporary(segdt),[3,0,1,2]) ; [ day, year, x, y ]
 ;    segdt2=transpose(temporary(segdt2),[3,0,1,2]) ; [ day, year, x, y ]
 
-    spec = fft(segdt,-1,dimension=1,/double)
-    spec = abs(spec)^2
+;    spec = fft(segdt,-1,dimension=1,/double)
+spec = fft(segdt,1,dimension=1,/double)
+    spec = abs(spec)^2 / npseg ; --> mm^2 / d
 ;    spec2 = fft(segdt2,-1,dimension=1,/double)
 ;    spec2 = abs(spec2)^2
 
@@ -221,9 +222,8 @@ segdt=segp
 print,'Band1:',min(t[iband]),'-',max(t[iband])
 ;    rain_band1=total(spec[iband,*,*,*],1,/nan,/double)
     rain_band1=mean(spec[iband,*,*,*],dimension=1,/nan,/double)
-    rain_band1=mean(rain_band1,dimension=1,/nan,/double) / npseg ; --> mm^2 / d
-stats,rain_band1
-exit
+    rain_band1=mean(rain_band1,dimension=1,/nan,/double)
+
 ;    var2_band1=mean(spec2[iband,*,*,*],dimension=1,/nan,/double)
 ;    var2_band1=mean(var2_band1,dimension=1,/nan,/double)
 
@@ -233,8 +233,9 @@ exit
     iband=where(t ge iper[0] and t le iper[1])
 print,'Band2:',min(t[iband]),'-',max(t[iband])
     print,''
-    rain_band2=total(spec[iband,*,*,*],1,/nan,/double)
-    rain_band2=mean(rain_band2,dimension=1,/nan,/double) / npseg ; --> mm^2 / d
+;    rain_band2=total(spec[iband,*,*,*],1,/nan,/double)
+    rain_band2=mean(spec[iband,*,*,*],dimension=1,/nan,/double)
+    rain_band2=mean(rain_band2,dimension=1,/nan,/double)
 ;    var2_band2=mean(spec2[iband,*,*,*],dimension=1,/nan,/double)
 ;    var2_band2=mean(var2_band2,dimension=1,/nan,/double)
 
@@ -298,12 +299,15 @@ rain_band2*=scale
   if do_seg then begin
     setmax=5
     cbar_format='(i1)'
-    cbar_tag='[ (mm/d)!U2!N ]'
+    cbar_tag='[ mm!U2!N/d ]'
     figtag='_yrseg'
     if do_jjas then begin
       setmax=36
       cbar_format='(i2)'
       figtag='_yrseg_jjas'
+stats,rain_band1
+setmax=4000
+cbar_format='(i4)'
     endif
   endif else begin
     setmax=24
@@ -327,7 +331,7 @@ rain_band2*=scale
 ;        irev=1
 ;        if irev then colors=reverse(colors)
 ;        figspecs.colors=colors
-;    ;    figspecs.ndivs-=1
+        figspecs.ndivs-=2
 
 ;  if keyword_set(cvar) then begin
 ;;    cvar=create_struct('cvar',mean(cvar,dimension=3,/nan,/double),'x',eralon,'y',eralat)

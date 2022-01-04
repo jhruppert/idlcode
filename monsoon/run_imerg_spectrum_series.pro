@@ -28,8 +28,8 @@ iplot_mn_rain=0   ; plot time-mean rainfall?
   yy_plot=[2000,2020]
   mm_plot=[6,12]
   dd_plot=[1,31] ; inclusive
-yy_plot[0]=2001
-mm_plot[0]=1
+;yy_plot[0]=2001
+;mm_plot[0]=1
 ;    yy_plot=[2013,2017]
 ;    mm_plot=[1,12]
 ;    dd_plot=[1,31] ; inclusive
@@ -70,6 +70,16 @@ mm_plot[0]=1
   caldat,time,mm,dd,yy
   jjas=where(mm ge 6 and mm le 9)
 
+    time_era=timegen(start=julday(1,dd_plot[0],yy_plot[0],0,0,0),$
+      final=julday(mm_plot[1],dd_plot[1],yy_plot[1],23,59,59),step_size=1,units='Days');30,units='Minutes')
+
+;OVERWRITE WITH ERA
+;  caldat,time_era,mm,dd,yy
+;  jjas_era=where(mm ge 6 and mm le 9)
+  nt=n_elements(time_era)
+  nd=nt
+
+
 ;=====BEGIN READING=========================================================
 
 ;----READ RAIN--------------------
@@ -80,12 +90,21 @@ mm_plot[0]=1
 
 ;----READ ERA5--------------------
 
-;  ;500-HPA WIND
-;  varstr='var131' ; u
-;  varstr='var132' ; v
-;  psel_era=500 ; hPa
-;  u=read_nc_era5(time,era_fil,varstr,plev=psel_era,lon=eralon,lat=eralat,bounds=bounds)
-;
+  ;USE COAST-NORMAL WIND AS INDEX INSTEAD
+
+  ;850-HPA WIND
+  psel_era=850 ; hPa
+  u=read_nc_era5(time_era,era_fil,'var131',plev=psel_era,lon=eralon,lat=eralat,bounds=bounds)
+  v=read_nc_era5(time_era,era_fil,'var132',plev=psel_era,lon=eralon,lat=eralat,bounds=bounds)
+
+  icross=3
+  coast_thresh=200 ; km
+  coastnormal, icross, coast_thresh, u, v, eralon, eralat, uindex=uindex
+
+  ;UNORM INDEX
+;  filter_monsoon, uindex, 'fft', var_bw=u_bw, var_intra=u_intra
+;  uindex=uindex[jjas_era]
+
 ;;OVERWRITE
 ;rain_sav=u
 ;
@@ -240,7 +259,8 @@ endif
     extra=(nd mod nyr)
     nband=npseg/2
     ngap=npseg;10
-    seg=rain[0:npseg-1]
+;    seg=rain[0:npseg-1]
+seg=uindex[0:npseg-1]
     count=0
     while count+ngap+npseg le (nd-extra) do begin
       count+=ngap

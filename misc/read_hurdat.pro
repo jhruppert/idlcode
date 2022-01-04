@@ -70,8 +70,8 @@ hurdat='/work/06040/tg853394/stampede2/tc_stuff/hurdat2-1851-2017-050118.txt'
   endfor
 
 ;STORM MOTION (m/s)
-motion_x = 111d3 * cos(lat*!pi/180) * deriv(lon) / (deriv(jultim) * 24*3600)
-motion_y = 111d3 *                    deriv(lat) / (deriv(jultim) * 24*3600)
+motion_x = 111d3 * cos(lat*!pi/180) * deriv(jultim*24*3600,lon)
+motion_y = 111d3 *                    deriv(jultim*24*3600,lat)
 
 dat=create_struct('jultim',jultim,'lon',lon,'lat',lat,'wspd',wspd,'pres',pres,'motion_x',motion_x,'motion_y',motion_y,'status',status)
 

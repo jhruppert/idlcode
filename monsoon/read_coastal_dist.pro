@@ -15,7 +15,7 @@ nyout=n_elements(latout)
 
 ;----DIRECTORIES--------------------
 
-  coast_dist_fil=dirs.home+'idl/code/misc/dist2coast.nc'
+  coast_dist_fil=dirs.wkdir+'dist2coast.nc'
 
 ;----READ COASTAL DISTANCE--------------------
 

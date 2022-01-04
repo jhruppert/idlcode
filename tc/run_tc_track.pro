@@ -9,7 +9,7 @@
 pro run_tc_track
 
 tcname='maria'
-tcname='haiyan'
+;tcname='haiyan'
 
 if tcname eq 'maria' then begin
   tcyear='2017'
@@ -60,8 +60,8 @@ loc[*]=!values.f_nan
 ;  land=where(mask eq 1,nland)
 ;  mask=0
 
-for ic=0,dirs.nc-1 do begin
-;for ic=0,0 do begin
+;for ic=0,dirs.nc-1 do begin
+for ic=0,0 do begin
 
   print,strupcase(dirs.cases[ic])
 
@@ -82,38 +82,47 @@ for ic=0,dirs.nc-1 do begin
     count=[dims.nx,dims.ny,1,i_nt] & offset=[0,0,izsel,0] ; x,y,z,t
     avor=reform(read_nc_var(file,'AVOR',count=count,offset=offset))
 
+;NEW METHOD OF TRACKING
+trackfil=dirs.casedir[ic]+'track.nc'
+vmax=tc_track(avor,dims,time,hurdat,ntskip=1,kernel=kernel,/write,trackfil=trackfil)
+exit
+vmax=reform(read_nc_var(trackfil,'vmax'))
+vloc=reform(vmax[[0,1],*])
+
   specs=size(avor,/dimensions)
 ;  i_nt=specs[2]
 ;  it_test=indgen(i_nt)
 
   ;SMOOTH
-    ixsmooth=round(111./3) ; 1-degree smoothing, run twice
-    ismooth=[ixsmooth,ixsmooth,0]
-    for i=1,2 do $
-      avor=smooth(temporary(avor),ismooth,/edge_truncate,/nan)
-
-  ;MASKING
-    imask=fltarr(dims.nx,dims.ny,i_nt)
-    for it=0,i_nt-1 do imask[*,*,it]=mask
-    land=where(imask eq 1,nland)
-    if nland gt 0 then avor[land]=!values.f_nan
-    if tcname eq 'maria' then avor=wrf_maria_mask(temporary(avor),time[it_test],hurdat,dims)
-    if tcname eq 'haiyan' then avor=wrf_haiyan_mask(temporary(avor),time[it_test],hurdat,dims)
-
-  ;VORTEX TRACKING
-    vloc=maria_vortex_locate(avor,dims);,/write)
-
-  ;SMOOTH TRACKS
-    for i=0,1 do $
-      vloc=smooth(temporary(vloc),[0,3],/edge_truncate,/nan)
-
-  ;SKIP 1ST 1.5 DAYS FOR HAIYAN CONTROL
-    if dirs.cases[ic] eq 'ctl' and tcname eq 'haiyan' then $
-      vloc[*,0:npd-1+npd/2]=!values.f_nan
+;    ixsmooth=round(111./3) ; 1-degree smoothing, run twice
+;    ismooth=[ixsmooth,ixsmooth,0]
+;    for i=1,2 do $
+;      avor=smooth(temporary(avor),ismooth,/edge_truncate,/nan)
+;
+;  ;MASKING
+;    imask=fltarr(dims.nx,dims.ny,i_nt)
+;    for it=0,i_nt-1 do imask[*,*,it]=mask
+;    land=where(imask eq 1,nland)
+;    if nland gt 0 then avor[land]=!values.f_nan
+;    if tcname eq 'maria' then avor=wrf_maria_mask(temporary(avor),time[it_test],hurdat,dims)
+;    if tcname eq 'haiyan' then avor=wrf_haiyan_mask(temporary(avor),time[it_test],hurdat,dims)
+;
+;  ;VORTEX TRACKING
+;    vloc=maria_vortex_locate(avor,dims);,/write)
+;
+;  ;SMOOTH TRACKS
+;    for i=0,1 do $
+;      vloc=smooth(temporary(vloc),[0,3],/edge_truncate,/nan)
+;
+;  ;SKIP 1ST 1.5 DAYS FOR HAIYAN CONTROL
+;    if dirs.cases[ic] eq 'ctl' and tcname eq 'haiyan' then $
+;      vloc[*,0:npd-1+npd/2]=!values.f_nan
 
 ;    ipmin = wrf_pres_min(dirs.casedir[ic])
     loc[ic,0,it_test]=vloc[0,*];ipmin.lon
     loc[ic,1,it_test]=vloc[1,*];ipmin.lat
+
+
 
 ;  ;CALCULATE AND PRINT STORM MOTION
 ;    loc_x = reform(vloc[0,*])

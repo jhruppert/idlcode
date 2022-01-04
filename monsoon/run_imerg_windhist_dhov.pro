@@ -12,12 +12,11 @@ config_dir,dirs=dirs
 
 ;ALL VARIABLES ARE NOW CALCULATED BY calc_windhist_diurnal.pro
 
-coast_thresh=200 ; km
-
 var_plot='rain';
 ;var_plot='pw';'rain';
 
-icross=1 ; Which cross section for unorm calculation?
+icross_ind=1 ; Which cross section used for unorm calculation?
+icross_plt=3 ; Which cross section to plot?
 
 ;SELECT DATE RANGE
 ;  yy_plot=[2013,2017]
@@ -54,27 +53,27 @@ dat_str='2000-2020'
 ;----TIME ARRAY FOR DAILY AVERAGE TIME SERIES--------------------
 
   ;SELECTED TIME ARRAY
-    time=timegen(start=julday(mm_plot[0],dd_plot[0],yy_plot[0],0,0,0),$
-      final=julday(mm_plot[1],dd_plot[1],yy_plot[1],23,59,59),step_size=1,units='Days');30,units='Minutes')
-    nt=n_elements(time)
-    nd=nt
-    nyr=yy_plot[1]-yy_plot[0]+1
-
-  ;SAVE JJAS INDICES
-    caldat,time,mm,dd,yy
-    jjas=where((mm ge 6) and (mm le 9))
+;    time=timegen(start=julday(mm_plot[0],dd_plot[0],yy_plot[0],0,0,0),$
+;      final=julday(mm_plot[1],dd_plot[1],yy_plot[1],23,59,59),step_size=1,units='Days');30,units='Minutes')
+;    nt=n_elements(time)
+;    nd=nt
+;    nyr=yy_plot[1]-yy_plot[0]+1
+;
+;  ;SAVE JJAS INDICES
+;    caldat,time,mm,dd,yy
+;    jjas=where((mm ge 6) and (mm le 9))
 
 ;=====BEGIN READING=========================================================
 
 ;----HOVMOLLER SETTINGS--------------------
 
-  imerg_cross_settings, icross, xcross=xcross, ycross=ycross, bounds_ind=bounds
+  imerg_cross_settings, icross_plt, xcross=xcross, ycross=ycross, bounds_ind=bounds
 
 ;----READ RAIN--------------------
 
   if var_plot eq 'rain' then begin
 
-    rain_file=compdir+'3B-HHR.MS.MRG.3IMERG.2000-2020_JJAS_cross'+strtrim(icross,2)+'_'+dat_str+'_unormcomp_bw.nc4'
+    rain_file=compdir+'3B-HHR.MS.MRG.3IMERG.2000-2020_JJAS_cross'+strtrim(icross_ind,2)+'_'+dat_str+'_unormcomp_bw.nc4'
     lon=read_nc_var(rain_file,'lon')
     lat=read_nc_var(rain_file,'lat')
     nx=n_elements(lon)
@@ -88,8 +87,9 @@ dat_str='2000-2020'
 ;    ix0=ix[0] & iy0=iy[0]
 ;    lon=lon[ix] & lat=lat[iy]
 
-    bins = ['-1','-0.5','-0.25','0.25','0.5','1']
-    nbin=n_elements(bins)-1
+;    bins = ['-1','-0.5','-0.25','0.25','0.5','1']
+;    nbin=n_elements(bins)-1
+nbin=8
     bandtag=['bw','intra']
 
     rain_ucomp=fltarr(ny,nx,npd_im,nbin,2)
@@ -99,7 +99,8 @@ dat_str='2000-2020'
 
     for iband=1,2 do begin ; Biweekly / Intraseasonal
       filetag=bandtag[iband-1]
-      rain_file=compdir+'3B-HHR.MS.MRG.3IMERG.2000-2020_JJAS_cross'+strtrim(icross,2)+'_'+dat_str+'_unormcomp_'+filetag+'.nc4'
+;      rain_file=compdir+'3B-HHR.MS.MRG.3IMERG.2000-2020_JJAS_cross'+strtrim(icross_ind,2)+'_'+dat_str+'_unormcomp_'+filetag+'.nc4'
+      rain_file=compdir+'3B-HHR.MS.MRG.3IMERG.2000-2020_JJAS_cross'+strtrim(icross_ind,2)+'_'+dat_str+'_unormcomp_'+filetag+'_8cyc.nc4'
       rain_ucomp[*,*,*,*,iband-1]=read_nc_var(rain_file,'rain_ucomp',count=count,offset=offset) ; mm/h [ y, x, npd_im , nbin ]
     endfor ; iband
 
@@ -117,7 +118,7 @@ dat_str='2000-2020'
 ;=====HOVMOLLER PREP=========================================================
 
   ;FLIP BACK FOR CROSS3
-  if icross eq 3 then begin
+  if icross_plt eq 3 then begin
     xcross=reverse(xcross)
     ycross=reverse(ycross)
   endif
@@ -139,15 +140,22 @@ dat_str='2000-2020'
     xhov=fltarr(nxhov)
     for ix=0,nxhov-1 do $
       xhov[ix]=111.*sqrt( (xlon[ix]*cos(xlat[ix]*!dtor))^2 + xlat[ix]^2 ) ; Converts to km
-    xhov=reverse(xhov)
+    if icross_plt ne 3 then xhov=reverse(xhov)
   ;ADJUST BY COASTLINE LOCATION
-    ixcheck=indgen(nxhov/2)+nxhov/2
-    ixcoast=(where(lsmask[ixcheck] gt 0.5))[0]
+    if icross_plt eq 3 then begin
+      ;GOES FROM LAND TO WATER
+      ixcheck=indgen(nxhov)
+      ixcoast=(where(lsmask[ixcheck] le 0.1))[0]
+    endif else begin
+      ;GOES FROM WATER TO LAND
+      ixcheck=indgen(nxhov/2)+nxhov/2
+      ixcoast=(where(lsmask[ixcheck] gt 0.5))[0]
+    endelse
     xcoast=xhov[ixcheck[ixcoast]]
     xhov-=xcoast
 
-  if icross eq 2 then $
-    xhov=reverse(xhov)
+;  if icross_plt eq 3 then $
+;    xhov=reverse(xhov)
 
 
 ;=====GENERATE COMPOSITES=========================================================
@@ -157,7 +165,13 @@ dat_str='2000-2020'
 iplot_mn=0
 if iplot_mn then begin
 
-  var_mn=mean(var_comp,dimension=3,/nan,/double) * 24
+  imergfil=dirs.wkdir+'imerg/imerg/easthem/3B-HHR.MS.MRG.3IMERG.2000-2020_JJAS_allmean.V06B.nc4'
+  var_mn=read_nc_var(imergfil,'precipitationCal') ; keep in mm/hr
+  var_comp=rebin(var_mn,[ny,nx,npd_im])
+  imergfil=dirs.wkdir+'imerg/imerg/easthem/idl_detrend_3B-HHR.MS.MRG.3IMERG.2000-2020_JJAS_diurncomp.V06B.nc4'
+  var_comp+=read_nc_var(imergfil,'rain_dc') ; keep in mm/hr
+  var_mn*=24
+  var_mn=transpose(temporary(var_mn))
 
 ;  umn=mean(u,dimension=3,/nan,/double)
 ;  vmn=mean(v,dimension=3,/nan,/double)
@@ -165,13 +179,13 @@ if iplot_mn then begin
 ;  cvarm=mean(unorm,dimension=3,/nan,/double)
 ;  cvar=create_struct('cvar',cvarm,'x',eralon,'y',eralat)
 
-  figname=ifigdir+'test_cross'+strtrim(icross,2)
+  figname=ifigdir+'test_indcross'+strtrim(icross_ind,2)+'_cross'+strtrim(icross_plt,2)
 
   ;OVERLAY CROSS SECTION
   plt_cross=[xcross,ycross]
 
-  plot_mean_map_myanmar, dirs, var_mn, lon, lat, var_plot, figname, $
-    u=umn, v=vmn, eralon=eralon, eralat=eralat, cvar=cvar, cross=plt_cross
+;  plot_mean_map_myanmar, dirs, var_mn, lon, lat, var_plot, figname, $
+;    u=umn, v=vmn, eralon=eralon, eralat=eralat, cvar=cvar, cross=plt_cross
 
 ;----MEAN HOVMOLLER--------------------
 
@@ -182,9 +196,14 @@ if iplot_mn then begin
 
 ;var_comp-=rebin(var_mn,[nx,ny,npd_im])/24
   var_plt=var_comp;mean(var,dimension=4,/nan,/double)
+  var_plt=transpose(temporary(var_plt),[1,0,2])
+
+;REORDER LOCAL TIME TO PUT 0 LT AT FIRST INDEX
+  ltim=round(lon/360.*24)
+  for ix=0,nx-1 do var_plt[ix,*,*]=shift(reform(var_plt[ix,*,*]),[0,ltim[ix]*npd_im/24])
 
   myan_figspecs, var_str, figspecs, setmin=setmin, setmax=setmax, setndivs=3, set_cint=3
-  figname=ifigdir+'test_hov_cross'+strtrim(icross,2)
+  figname=ifigdir+'test_hov_indcross'+strtrim(icross_ind,2)+'_cross'+strtrim(icross_plt,2)
   figspecs=create_struct(figspecs,'figname',figname)
   figspecs.cbar_format=cbform
   figspecs.cbar_tag=cbtag
@@ -200,9 +219,6 @@ if iplot_mn then begin
   ;INTERPOLATE ONTO HOVMOLLER CROSS
   cross=cross_diag(var_plt,lon,lat,width,x_bounds=xcross,y_bounds=ycross)
   imerg=mean(cross,dimension=2,/nan,/double) & cross=0
-
-  ;REORDER TO PUT 0 LT AT FIRST INDEX
-;  imerg=shift(temporary(imerg),[0,local*npd_im/24])
 
   wrf_monsoon_dcomp_hov, dirs, figspecs, imerg, ltim_imerg_shift, xhov
 
@@ -257,14 +273,15 @@ setmax=1.8;3.
   
       print,'  ibin: ',ibin
   
-        bin_txt = [ bins[ibin] , bins[ibin+1] ]
-  
         bintag=strtrim(ibin+1,2)
+        bin_txt = 'Phase '+bintag;[ bins[ibin] , bins[ibin+1] ]
 
       filetag=bandtag+'_'+bintag
 
-      figspecs.title=bin_txt[0]+' to '+bin_txt[1]+' sigma'
-      figname=ifigdir+var_plot+'_hov_'+bandtag+'_'+bintag+'_cross'+strtrim(icross,2)
+      figspecs.title=bin_txt;[0]+' to '+bin_txt[1]+' sigma'
+;      figname=ifigdir+var_plot+'_hov_'+bandtag+'_'+bintag+'_cross'+strtrim(icross_ind,2)
+;Longer name version if plotting icross and indexing icross differ
+      figname=ifigdir+var_plot+'_hov_'+bandtag+'_'+bintag+'_indcross'+strtrim(icross_ind,2)+'_cross'+strtrim(icross_plt,2)
       figspecs.figname=figname
 
       var_mn=reform(rain_ucomp[*,*,*,ibin,iband-1])

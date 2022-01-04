@@ -13,6 +13,8 @@
 ;
 function read_nc_imerg, time_read, ncfile, bounds=bounds, lon=lon, lat=lat
 
+  iallmean=0
+  if strmatch(ncfile,'*allmean*') then iallmean=1
   imonthly=0
   if strmatch(ncfile,'*monthly*') then imonthly=1
   idaily=0
@@ -28,6 +30,7 @@ function read_nc_imerg, time_read, ncfile, bounds=bounds, lon=lon, lat=lat
     ny=n_elements(lat)
 
     ;TIME SUBSET
+    if ~iallmean then begin
       time=reform(read_nc_var(ncfile,'time')) ; Seconds since 1970-01-01 00:00:00Z
       if imonthly then time=julday(1,1,1970,0,0,time) $
       else if idaily then time=julday(1,1,1970,0,0,0)+time $
@@ -41,6 +44,10 @@ function read_nc_imerg, time_read, ncfile, bounds=bounds, lon=lon, lat=lat
 
       nt_read=it1-it0+1
       it=indgen(nt_read)+it0
+    endif else begin
+      nt_read=1
+      it=0
+    endelse
 
     ;SPACE SUBSET
     ix0=0 & iy0=0
@@ -53,7 +60,9 @@ function read_nc_imerg, time_read, ncfile, bounds=bounds, lon=lon, lat=lat
 
     count=[ny,nx,nt_read] & offset=[iy0,ix0,it[0]] ; x,y,t
     rain=reform(read_nc_var(ncfile,varname,count=count,offset=offset))
-    rain=transpose(temporary(rain),[1,0,2])
+    if ~iallmean then $
+      rain=transpose(temporary(rain),[1,0,2]) else $
+      rain=transpose(temporary(rain))
 
   return,rain
 

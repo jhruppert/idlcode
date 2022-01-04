@@ -10,7 +10,7 @@ pro wrf_regrid_azim, azim_file, infil, var_tag, t_ind_read, dims, tcloc, overrid
 
 
 ;UP-LEVEL IF EXISTS
-exists=file_test(azim_file)
+;exists=file_test(azim_file)
 ;if exists and ~override then begin
 ;  print,azim_file+' already there. Moving onto next var...'
 ;  return
@@ -38,7 +38,7 @@ print,'Generating azimuthal var!'
 ;    rmax=800. ; km
     rmax=1300. ; km <-- Files used for paper
     drad=3.   ; km
-    nrad=round(rmax/drad) ; 800 km at 3 km spacing
+    nrad=round(rmax/drad) ; 3 km spacing
     radius=findgen(nrad)/nrad*rmax
   ;AZMIUTH ARRAY
     nazim=360
@@ -58,7 +58,11 @@ print,'Generating azimuthal var!'
 nt=n_elements(t_ind_read)
 azim_var=fltarr(nrad,nazim,nz,nt)
 
+;CATCH IN CASE OF NO TC IDENTIFIED
+  if nt eq 1 then return
+
 for it=0,nt-1 do begin
+;for it=0,5 do begin
 
 print,'IT: ',it,' of ',nt-1
 
@@ -103,8 +107,9 @@ for iz=0,nz-1 do $
 
 endfor ; it
 
+;WRITE OUT
   write_sing_ncvar,azim_file,azim_var,var_tag,$
-    dim1=radius,dim2=azim,$
+    dim1=radius,dim2=azim,dim3=indgen(nz),dim4=t_ind_read,$
     dimtag1='radius',dimtag2='azmiuth',dimtag3='level',dimtag4='time'
 
 

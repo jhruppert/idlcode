@@ -69,6 +69,7 @@ pro plot_imerg_pspec_spectrum, figname, spec, freq, $
 ;  xrange=[min(x),.142];0.5];max(x)]
   xrange=[1./365,1./2];6.8];1./2]
 xrange[0]=1./128
+;xrange[0]=1./365.
 xrange[1]=[1./7]
 ;xrange=[2*365,2]
 

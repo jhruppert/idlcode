@@ -195,13 +195,14 @@ if ~keyword_set(idcomp) then idcomp=0
 
     cbar_format='(i3)'
     cbar_tag='AVOR [ 10!U-5!N s!U-1!N ]'
+cbar_tag='Rel Vor [ 10!U-6!N s!U-1!N ]'
     title='AVOR'
     icbar=1
 
     scale=1.
 
-    col_table=3
-    irev=1
+    col_table=66;3
+    irev=0;1
 
     ndivs=6
     if keyword_set(setndivs) then ndivs=setndivs
@@ -212,7 +213,7 @@ if ~keyword_set(idcomp) then idcomp=0
 
     max=60;20
     if keyword_set(setmax) then max=setmax
-    min=0;-1.*max;20
+    min=-1.*max;20
     if keyword_set(setmin) then min=setmin
     levels=findgen(ncols)/(ncols-1)*(max-min)+min
 

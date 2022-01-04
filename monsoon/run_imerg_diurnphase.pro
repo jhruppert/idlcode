@@ -33,12 +33,18 @@ config_dir,dirs=dirs
 ;----PLOT OPTIONS--------------------
 
 ;BOUNDS FOR PLOTTING
-  bounds=[62,5,103,28] ; SASM region
+  bounds=[66,2,108,25] ; SASM region
+;  bounds=[63,5,103,28] ; SASM region
+;  bounds=[60,-20,156,34] ; Eastern hemisphere
+
+;PRESSURE LEVEL FOR VORTICITY
+;  psel_era=500
+  psel_era=850
 
 ;skip=4;12 ; Skip diurnal time steps for testing purposes?
 
 ;SELECT DATE RANGE
-dat_str='2000-2020'
+;dat_str='2000-2020'
 ;dat_str='2013-2017'
 
 ;----DIRECTORIES--------------------
@@ -86,6 +92,17 @@ dat_str='2000-2020'
   tsmth = 3 ; 3-pt running mean in hour
 ;  rain = smooth(temporary(rain),[0,0,tsmth],/edge_wrap)
 
+;=====READ ERA=========================================================
+
+  era_fil_p=dirs.wkdir+'era5/ERA5-20000101-20201231-pl_JJAS_allmean.nc4'
+    ; u,v [ m/s ]
+    ; RH [ % ]
+
+  u=read_nc_era5(time,era_fil_p,'var131',plev=psel_era,lon=eralon,lat=eralat,bounds=bounds)
+  v=read_nc_era5(time,era_fil_p,'var132',plev=psel_era,lon=eralon,lat=eralat,bounds=bounds)
+
+  avor=abs_vorticity(u,v,eralon,eralat)
+
 ;=====MAIN VARIABLES=========================================================
 
   ;REORDER LOCAL TIME TO PUT 0 LT AT FIRST INDEX
@@ -105,8 +122,8 @@ dat_str='2000-2020'
 
 ;=====PLOTS=========================================================
 
-;for iplot=0,3 do begin
-for iplot=0,2 do begin
+;for iplot=0,4 do begin
+for iplot=2,2 do begin
 
   if iplot eq 0 or iplot eq 1 then begin
 
@@ -162,6 +179,24 @@ colors=reverse(colors)
     cbar_format='(f3.1)'
     cbar_tag=' '
 
+  endif else if iplot eq 4 then begin
+    var=avor * 1e6 ; 10^-6 /s
+var=smooth(var,[3,3],/edge_truncate)
+    figname=ifigdir+'mean_avor_'+strtrim(psel_era,2)
+    title='Relative Vorticity ('+strtrim(psel_era,2)+' hPa)'
+
+    lon=eralon
+    lat=eralat
+
+    col_table=75
+    ncols=15
+    colors=findgen(ncols)/(ncols-1)*255;/2+255/2
+    max=30. & min=0
+    levels=findgen(ncols)/(ncols-1)*(max-min)+min
+    ndivs=6
+    cbar_format='(i2)'
+    cbar_tag='10!U-6!N /s'
+
   endif
 
   ;PLOT SPECS
@@ -193,14 +228,22 @@ colors=reverse(colors)
   loadct,0,/silent
 
   ;OVERLAY TITLE
-    xyouts,mean(area[[1,3]]),area[2]+2.3,title,align=0.5,charsize=csize,/data
+    dy=2.3
+    if bounds[1] lt 0 then dy=5
+    xyouts,mean(area[[1,3]]),area[2]+dy,title,align=0.5,charsize=csize,/data
 
-;  if iplot eq 2 then begin
-;    xcross=[77.8,96.2] ; lon,lat
-;    ycross=[12.,21.5]   ; lon,lat
-;    cross=[xcross,ycross]
-;      plots,cross[0:1],cross[2:3],linestyle=0,thick=2,/data
-;  endif
+  if iplot eq 2 then begin
+    ;ICROSS = 1
+      xcross=[77.8,96.2] ; lon,lat
+      ycross=[12.,21.5]   ; lon,lat
+      cross=[xcross,ycross]
+      plots,cross[0:1],cross[2:3],linestyle=0,thick=3,/data
+    ;ICROSS = 3
+      xcross=[83.,93.5] ; lon,lat
+      ycross=[21.4,10]   ; lon,lat
+      cross=[xcross,ycross]
+      plots,cross[0:1],cross[2:3],linestyle=1,thick=3,/data
+  endif
 
   ;LAND
     landcol=0
@@ -240,7 +283,7 @@ endif else setlevels=0
     loadct,0,/silent
 
   device,/close
-  convert_png,figname,res=200,/remove_eps
+  convert_png,figname,res=300,/remove_eps
 
 endfor ; iplot
 

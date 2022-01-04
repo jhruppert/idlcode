@@ -1,5 +1,5 @@
 ; 
-; Calculate the coast-normal wind speed and mask, average, and filter it.
+; Calculate the coast-normal wind speed and mask and average it.
 ;
 ; Called by run_imerg_windhist.pro
 ;
@@ -19,7 +19,6 @@ nd=dims[2]
 ;----DIRECTORIES--------------------
 
   metfil_dir=dirs.wkdir+'wrf_wps/wrfv4/output_myanmar/JJAS_2013-2017/era5/'
-  coast_dist_fil=dirs.home+'idl/code/misc/dist2coast.nc'
 
 ;=====BEGIN READING=========================================================
 

@@ -84,11 +84,11 @@ pro wrf_myanmar_map_plot, dirs, var, lon, lat, figspecs, $
 ;    map_continents,color=0,/coasts,hires=hires,mlinethick=0.1
 
   ;CROSS SECTIONS
-;  if keyword_set(cross) then $
+  if keyword_set(cross) then $
 ;  xcross=[77.8,96.2]; -13. ; lon,lat
 ;  ycross=[12.,21.5] ;- 2.5  ; lon,lat
 ;  cross=[xcross,ycross]
-;    plots,cross[0:1],cross[2:3],linestyle=2,thick=2,/data
+    plots,cross[0:1],cross[2:3],linestyle=2,thick=2,/data
 
   ;PLOT BOX
     if keyword_set(box) then begin

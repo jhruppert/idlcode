@@ -1,5 +1,5 @@
 ; 
-; Create composite plots as a function of filtered coast-normal wind speed.
+; Create composite diurnal time series around a selected coast.
 ;
 ; James Ruppert
 ; 7/22/21

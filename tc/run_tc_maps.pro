@@ -7,7 +7,7 @@
 pro run_tc_maps
 
 tcname='maria'
-tcname='haiyan'
+;tcname='haiyan'
 
 if tcname eq 'maria' then begin
   tcyear='2017'
@@ -34,8 +34,9 @@ allvars=['wspd','RAINNC','rainrate','avor','slp','lh','th_e','olr','pw']
 allvars=['olr'];,'pw','olr','pw']
 allvars=['tqc']
 ;allvars=['rainrate']
+allvars=['avor']
+;allvars=['olr']
 ;allvars=['wspd']
-allvars=['olr']
 ;allvars=['lw']
 nvsel=n_elements(allvars)
 
@@ -88,7 +89,7 @@ loc[*]=!values.f_nan
   vtag='LANDMASK'
   file=dirs.files_raw[0,2,0]
   mask=reform(read_nc_var(file,'LANDMASK'))
-;  land=where(mask eq 1,nland)
+  land=where(mask eq 1,nland)
 ;  mask=0
 
 
@@ -117,7 +118,7 @@ for ic=0,0 do begin
       it_ctl=indgen(int_ctl)
     endif
 
-;  if itcloc then begin
+  if itcloc then begin
 
   ;TC TRACK
       ;READ ABSOLUTE VORTICITY
@@ -166,7 +167,7 @@ for ic=0,0 do begin
 
     wspd_sav=max(max(temporary(wspd_sav),dimension=1,/nan),dimension=1,/nan)
 
-;  endif ; itcloc
+  endif ; itcloc
 
 
 ;IVAR LOOP
@@ -207,7 +208,7 @@ print,'VAR: ',var_str
       v=reform(read_nc_var(file,'V10',count=count,offset=offset))
     var = sqrt(u^2+v^2)
     u=0 & v=0
-    iwmax=1
+    iwmax=0;1
     if iwmax then begin
       ;USE CTL FOR TIMES UP TO RESTART
       if dirs.cases[ic] ne 'ctl' then begin
@@ -267,9 +268,8 @@ print,'VAR: ',var_str
 
     count=[dims.nx,dims.ny,1,i_nt] & offset=[0,0,klev,0] ; x,y,z,t
     var=reform(read_nc_var(file,iv_str,count=count,offset=offset))
-;file=dirs.files_raw[ic,itfil]
-;count=[dims.nx,dims.ny,1] & offset=[0,0,0] ; x,y,z,t
-;var=reform(read_nc_var(file,strupcase(iv_str),count=count,offset=offset))
+
+vloc=tc_track(var,dims,time,hurdat,kernel=kernel);,/write,trackfil=dirs.ensdir[ic]
 
 ;    if var_str eq 'olr' then begin
 ;      var[*,*,0]=!values.f_nan
@@ -375,7 +375,7 @@ print,'VAR: ',var_str
     setmax=300
   endif else if var_str eq 'avor' then begin
     setmin=0
-    setmax=100
+    setmax=20;100
   endif else if var_str eq 'rainrate' then begin
     setmin=.1
     setmax=40
@@ -389,7 +389,7 @@ print,'VAR: ',var_str
 
 fname=dirs.casedir+'post/tqc.nc'
 ;write_sing_ncvar,fname,var,'tqc',dimtag1='lon',dimtag2='lat',dimtag3='time'
-
+print,var_str
   tc_figspecs, var_str, figspecs, setmin=setmin, setmax=setmax, set_cint=5
   figdir=dirs.figdir+dirs.cases[ic]+'/'+var_str+'/'
   spawn,'mkdir '+figdir,tmp,tmpe
@@ -398,11 +398,13 @@ fname=dirs.casedir+'post/tqc.nc'
   titlesav=figspecs.title+' ('+strupcase(dirs.cases[ic]);+')'
 
   ;LOOP THROUGH TIMES
-  iskip=1;6;24;12 ; every x hrs
+  iskip=6;24;12 ; every x hrs
 itop=144
 if tcname eq 'haiyan' then itop=168
 ;  for it=0,nd-1 do begin
-;  for it=72,144,iskip do begin
+;for it=96,96 do begin
+;  for it=24,96,iskip do begin
+  for it=48,72,iskip do begin
 ;  for it=136,136,iskip do begin
 ;  for it=144,144,iskip do begin
 ;  HAIYAN
@@ -411,7 +413,7 @@ if tcname eq 'haiyan' then itop=168
 ;  for it=151,151 do begin
 ;  for it=151,168,17 do begin
 ;  for it=144,144 do begin
-  for it=itop,itop,iskip do begin
+;  for it=itop,itop,iskip do begin
 
   ;USE IT=136 FOR BEST CTL OLR --> this is the time of max wspd (Maria)
   ;USE IT=151 FOR HAIYAN
@@ -461,14 +463,27 @@ if tcname eq 'haiyan' then itop=168
     endif
 
     if var_str eq 'avor' or var_str eq 'SST' or var_str eq 'rainrate' then begin
+;ivar[land]=!values.f_nan
       ;REPLACE WITH MASKED FIELD
 ;      ivar = reform(avor[*,*,it_sel])
-      ix_sm=round(111./3) ; 1-degree
-ix_sm=round(111./3/2) ; 0.5-degree
-      ismooth=[ix_sm,ix_sm]
+;      ix_sm=round(111./3) ; 1-degree
+;ix_sm=round(111./3/2) ; 0.5-degree
+;      ismooth=[ix_sm,ix_sm]
       ;RUN TWICE
 ;      for i=1,2 do $
-        ivar=smooth(temporary(ivar),ismooth,/edge_truncate,/nan)
+;        ivar=smooth(temporary(ivar),ismooth,/edge_truncate,/nan)
+  dx_sigma=111. ; 2 x sigma [km]
+  dx = 111.*(dims.lat[1]-dims.lat[0]) ; delta-x in km
+  sigma=dx_sigma/dx/2.
+;dx_sigma=111.;30 ; 2*sigma in km
+;sigma=dx_sigma/3./2.
+if ~keyword_set(kernel) then $
+  ivar=gauss_smooth(temporary(ivar),sigma,/edge_truncate,/nan,kernel=kernel) $
+else $
+  ivar=convol(temporary(ivar),kernel,total(kernel),/edge_truncate,/nan)
+print,'Sigma = ',sigma*dx,' km'
+;nkern=(size(kernel,/dimen))[0]
+;print,kernel[(nkern-1)/2,*]
     endif
 
     figname=figdir+tim_tag+'_'+var_str+'_'+dirs.cases[ic];+'_dayavg'
@@ -485,17 +500,17 @@ ix_sm=round(111./3/2) ; 0.5-degree
     stats,ivar
 
     ;REMOVE EXCEEDING POINTS
-    if var_str eq 'olr' or var_str eq 'pw' then begin
-      iless=where(ivar lt min(figspecs.levels),count)
-      if count gt 0 then ivar[iless]=min(figspecs.levels)
-    endif
+;    if var_str eq 'olr' or var_str eq 'pw' then begin
+;      iless=where(ivar lt min(figspecs.levels),count)
+;      if count gt 0 then ivar[iless]=min(figspecs.levels)
+;    endif
 
     if ishear then ishr=reform(shr[*,it_sel])
 ;stop
-figspecs.figname=figdir+'pnas_'+tim_tag+'_'+var_str+'_'+dirs.cases[ic]
-;    wrf_tc_map_plot, dirs, ivar, dims.lon, dims.lat, figspecs, wind=wind, loc_pmin=reform(loc[ic,*,it_test[it_sel]]), $;, cvar=cvar
-;      itcloc=itcloc, shr=ishr
-pnas_cover_sub,ivar,dims.lon,dims.lat,figspecs
+;figspecs.figname=figdir+'pnas_'+tim_tag+'_'+var_str+'_'+dirs.cases[ic]
+    wrf_tc_map_plot, dirs, ivar, dims.lon, dims.lat, figspecs, wind=wind, loc_pmin=reform(loc[ic,*,it_test[it_sel]]), cvar=ivar,$
+      itcloc=itcloc, shr=ishr
+;pnas_cover_sub,ivar,dims.lon,dims.lat,figspecs
 ;    wrf_tc_map_plot, dirs, ivar, dims.lon, dims.lat, figspecs, wind=wind, loc_pmin=reform(loc[ic,*,it_test[it_sel]]), itcloc=itcloc, shr=ishr
 
   endfor

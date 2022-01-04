@@ -21,7 +21,8 @@ psel_era=850
 
 ;----OB DIRECTORIES--------------------
 
-  im_fil=dirs.wkdir+'imerg/imerg/data/3B-MO.MS.MRG.3IMERG.2000-2020_monthly.V06B.HDF5.nc4'
+;  im_fil=dirs.wkdir+'imerg/imerg/data/3B-MO.MS.MRG.3IMERG.2000-2020_monthly.V06B.HDF5.nc4'
+  im_fil=dirs.wkdir+'imerg/imerg/easthem/3B-HHR.MS.MRG.3IMERG.2000-2020_JJAS_allmean.V06B.nc4'
   era_fil_p=dirs.wkdir+'era5/ERA5-20000101-20201231-pl_monthly.nc4'
     ; u,v [ m/s ]
     ; RH [ % ]
@@ -76,9 +77,10 @@ iy=yy[uniq(yy)]
 
   ;JJAS
 
-  it_avg=where((yy ge iy[1]) and (mm ge 6 and mm le 9))
+;  it_avg=where((yy ge iy[1]) and (mm ge 6 and mm le 9))
+  it_avg=where((mm ge 6 and mm le 9))
 
-  rain_sum=mean(rain[*,*,it_avg],dimension=3,/nan,/double)
+  rain_sum=rain;mean(rain[*,*,it_avg],dimension=3,/nan,/double)
   u_sum=mean(u[*,*,it_avg],dimension=3,/nan,/double)
   v_sum=mean(v[*,*,it_avg],dimension=3,/nan,/double)
 
@@ -96,17 +98,21 @@ iy=yy[uniq(yy)]
 ;  if do_jjas then $
 ;    dat_str=' ('+string(yy_plot[0],format=form)+'-'+string(yy_plot[1],format=form)+', JJAS)'
 
+;=====CALCULATE VORTICITY=========================================================
+
+  avor=abs_vorticity(u_sum,v_sum,eralon,eralat)
+
 ;=====PLOTTING=========================================================
 
   var_str='RAINNC'
   setmax=18 & setmin='0'
-  setmax=20;24
+  setmax=24
 
   myan_figspecs, var_str, figspecs, setmin=setmin, setmax=setmax, setndivs=4, set_cint=3
   figspecs=create_struct(figspecs,'figname',' ')
   figspecs.cbar_format='(i2)'
   figspecs.cbar_tag='[ mm/d ]'
-;  figspecs.ndivs+=2
+  figspecs.ndivs+=2
 
   figspecs.title='';'Mean Rainfall';+dat_str
   figspecs.figname=ifigdir+'imerg_era5_'+strtrim(psel_era,2)
@@ -118,12 +124,13 @@ iy=yy[uniq(yy)]
     figspecs.clevs=(findgen(50)+1)*cint + 290
   endif
 
-  wrf_monthly_myanmar_plot, dirs, rain_all, rain_sum, u_all, v_all, u_sum, v_sum, $
-    lonim, latim, eralon, eralat, figspecs, cvar=cvar
+;  wrf_monthly_myanmar_plot, dirs, rain_all, rain_sum, u_all, v_all, u_sum, v_sum, $
+;    lonim, latim, eralon, eralat, figspecs, cvar=cvar
 
   ;ZOOMED IN
 
     bounds=[50,-20,160,30]
+    bounds=[66,2,108,25] ; SASM region
     ;SUBSET TO BOUNDING BOX
       ix=where((lonim ge bounds[0]) and (lonim le bounds[2]))
       iy=where((latim ge bounds[1]) and (latim le bounds[3]))
@@ -141,8 +148,8 @@ iy=yy[uniq(yy)]
       figspecs.clevs=(findgen(50)+1)*cint + 290
     endif
 
-;    figspecs.figname=ifigdir+'imerg_era5_'+strtrim(psel_era,2)+'_zoomin'
-;    wrf_myanmar_map_plot, dirs, rain, lon, lat, figspecs, wind=wind;, cvar=cvar;, /noscalewind
+    figspecs.figname=ifigdir+'imerg_era5_'+strtrim(psel_era,2)+'_zoomin'
+    wrf_myanmar_map_plot, dirs, rain, lon, lat, figspecs, wind=wind;, cvar=cvar;, /noscalewind
 
 ;stop
 

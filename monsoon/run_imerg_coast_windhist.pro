@@ -1,5 +1,5 @@
 ; 
-; Create histograms of rainfall as a function of filtered coast-normal wind speed.
+; Create histograms of daily rainfall as a function of filtered coast-normal wind speed.
 ;
 ; James Ruppert
 ; 7/22/21

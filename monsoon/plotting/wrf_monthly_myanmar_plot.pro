@@ -43,6 +43,7 @@ pro wrf_monthly_myanmar_plot, dirs, rain_all, rain_sum, u_all, v_all, u_sum, v_s
       yrange=[min(y),max(y)]
 
   !p.multi=[3,3,1]
+;  !p.multi=[2,2,1]
 
   set_plot,'ps'
   epsname=figspecs.figname+'.eps'

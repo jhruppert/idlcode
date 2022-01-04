@@ -10,6 +10,8 @@ message,'Update HOV prep to match run_imerg_windhist_dhov.pro'
 
 config_dir,dirs=dirs
 
+icross=1 ; Which cross section?
+
 ;NEED WRF SETTINGS JUST FOR MET_MET
 ;EXPERIMENT SETTINGS
   expname='myanmar'
@@ -31,16 +33,13 @@ config_wrfexp, casedir=casedir,cases=cases,dirs=dirs,$
 
 ;OB DIRECTORIES
   maindir=dirs.scdir+'myanmar/'
-  imergfil=maindir+'imerg/data/jjas_2013-2017_diurncomp_3B-HHR.MS.MRG.3IMERG.V06B.nc4';'imerg/20150620-20150629.nc4'
-  npd_imerg=48
+;  imergfil=maindir+'imerg/data/jjas_2013-2017_diurncomp_3B-HHR.MS.MRG.3IMERG.V06B.nc4';'imerg/20150620-20150629.nc4'
+  imergfil=dirs.wkdir+'imerg/imerg/idl_detrend_3B-HHR.MS.MRG.3IMERG.2000-2020_JJAS_diurncomp.V06B.nc4'
+  npd_im=48
   ;era_fil=maindir+'era5/jjas_2013-2017/ERA5-JJAS_2013-2017_mean-pl.nc';'era5/ERA5-20150623-20150630-uv.nc'
   ;USING MET_EM FILES FOR DIURNAL COMPOSITE ERA5
   era_dir=dirs.wkdir+'wrf_wps/wrfv4/output_myanmar/JJAS_2013-2017/era5/'
   npd_era=24
-
-;Local SOLAR time conversion
-local=6;round(mean(dims.lon)/360.*24.) ; deg lon --> hours
-print,'Adding +'+strtrim(local,2)+' for LT'
 
 ;----PLOT OPTIONS--------------------
 
@@ -69,11 +68,16 @@ iwind=0 ; overlay wind?
   psel=925;700;800;700 700 is the winner of 600, 700, 800, 850, 925
   izlev=(where(dims.pres eq psel))[0]
 
+;----HOVMOLLER SETTINGS--------------------
+
+  imerg_cross_settings, icross, xcross=xcross, ycross=ycross, bounds_ind=bounds
+
 ;----READ OBS--------------------
 
   ;IMERG RAINFALL
     imerg=read_nc_var(imergfil,'precipitationCal') ; keep in mm/hr
-    imerg=transpose(temporary(imerg))
+    imerg=read_nc_var(imergfil,'rain_dc') ; keep in mm/hr
+;    imerg=transpose(temporary(imerg))
 
   ;SHIFT TIME INDEX TO LAST POSITION
     imdims=size(imerg,/dim)
@@ -87,53 +91,84 @@ iwind=0 ; overlay wind?
 
 ;    npdim=48
 
-  ;ERA5 WINDS
+;  ;ERA5 WINDS
+;
+;  eralon=dims.lon
+;  eralat=dims.lat
+;
+;  if iwind then begin
+;
+;    ;PLEVS
+;    ilevera=925;[925, 950, 975, 1000]
+;    spawn,'ls '+era_dir+'met_em.'+domtag+'*',era_fil
+;    era_fil=era_fil[0:23]
+;    p_era=reform(read_nc_var(era_fil[0],'PRES',count=[1,1,38,1],offset=[0,0,0,0])) ; Pa
+;    izlev_era=(where(p_era*1d-2 eq psel))[0]
+;
+;    ;READ DIURNAL COMPOSITE
+;    u=fltarr(dims.nx,dims.ny,npd_era)
+;    v=u
+;
+;    for it=0,npd_era-1 do begin
+;      fil=era_fil[it]
+;      count=[dims.nx+1,dims.ny,1,1] & offset=[0,0,izlev_era,0] ; x, y, p, t
+;      iu=reform(read_nc_var(fil,'UU',count=count,offset=offset))
+;
+;    ;DESTAGGER
+;      ixin=indgen(dims.nx+1) & ixout=findgen(dims.nx)+0.5
+;      for iy=0,dims.ny-1 do u[*,iy,it]=interpol(reform(iu[*,iy]),ixin,ixout)
+;      count=[dims.nx,dims.ny+1,1,1] & offset=[0,0,izlev_era,0] ; x, y, p, t
+;      iv=reform(read_nc_var(fil,'VV',count=count,offset=offset))
+;      iyin=indgen(dims.ny+1) & iyout=findgen(dims.ny)+0.5
+;      for ix=0,dims.nx-1 do v[ix,*,it]=interpol(reform(iv[ix,*]),iyin,iyout)
+;    endfor
+;
+;  endif
 
-  eralon=dims.lon
-  eralat=dims.lat
+;----READ LAND/SEA MASK & TOPO--------------------
 
-  if iwind then begin
+  lsmask=read_lsmask(lon, lat)
 
-    ;PLEVS
-    ilevera=925;[925, 950, 975, 1000]
-    spawn,'ls '+era_dir+'met_em.'+domtag+'*',era_fil
-    era_fil=era_fil[0:23]
-    p_era=reform(read_nc_var(era_fil[0],'PRES',count=[1,1,38,1],offset=[0,0,0,0])) ; Pa
-    izlev_era=(where(p_era*1d-2 eq psel))[0]
+;=====HOVMOLLER PREP=========================================================
 
-    ;READ DIURNAL COMPOSITE
-    u=fltarr(dims.nx,dims.ny,npd_era)
-    v=u
-
-    for it=0,npd_era-1 do begin
-      fil=era_fil[it]
-      count=[dims.nx+1,dims.ny,1,1] & offset=[0,0,izlev_era,0] ; x, y, p, t
-      iu=reform(read_nc_var(fil,'UU',count=count,offset=offset))
-
-    ;DESTAGGER
-      ixin=indgen(dims.nx+1) & ixout=findgen(dims.nx)+0.5
-      for iy=0,dims.ny-1 do u[*,iy,it]=interpol(reform(iu[*,iy]),ixin,ixout)
-      count=[dims.nx,dims.ny+1,1,1] & offset=[0,0,izlev_era,0] ; x, y, p, t
-      iv=reform(read_nc_var(fil,'VV',count=count,offset=offset))
-      iyin=indgen(dims.ny+1) & iyout=findgen(dims.ny)+0.5
-      for ix=0,dims.nx-1 do v[ix,*,it]=interpol(reform(iv[ix,*]),iyin,iyout)
-    endfor
-
+  ;FLIP BACK FOR CROSS3
+  if icross eq 3 then begin
+    xcross=reverse(xcross)
+    ycross=reverse(ycross)
   endif
 
-;READ TOPOGRAPHY AND LAND MASK FROM ERA5 MET_EM FILES
-  spawn,'ls '+era_dir+'met_em.'+domtag+'*',era_fil
-  fil=era_fil[0]
-  topo=reform(read_nc_var(fil,'HGT_M'))*1e3 ; m --> km
-  lsmask=reform(read_nc_var(fil,'LANDMASK'))
+  ;REORDER LOCAL TIME TO PUT 0 LT AT FIRST INDEX
+;  ltim_imerg_shift=shift(ltim_imerg,local*npd_im/24)
+  ltim_imerg_shift=indgen(npd_im/2)
 
-;----AVERAGE IN Y TO MAKE HOVMOLLER--------------------
+  ;REORDER LOCAL TIME TO PUT 0 LT AT FIRST INDEX
+;  ltim_imerg_shift=shift(ltim_imerg,local*npd_im/24)
+  ltim_imerg_shift=indgen(npd_im/2)
 
-;INTERPOLATE VARS ONTO HOV GRID
-  cross_topo=cross_diag(topo,dims.lon,dims.lat,width,x_bounds=xcross,y_bounds=ycross,lonout=xlon,latout=xlat)
-  topo=mean(cross_topo,dimension=2,/nan,/double) & cross_topo=0
-  cross_lsmask=cross_diag(lsmask,dims.lon,dims.lat,width,x_bounds=xcross,y_bounds=ycross)
+;  cross_topo=cross_diag(topo,eralon,eralat,width,x_bounds=xcross,y_bounds=ycross,lonout=xlon,latout=xlat)
+;  topo=mean(cross_topo,dimension=2,/nan,/double) & cross_topo=0
+  cross_lsmask=cross_diag(lsmask,lon,lat,width,x_bounds=xcross,y_bounds=ycross,lonout=xlon,latout=xlat)
   lsmask=mean(cross_lsmask,dimension=2,/nan,/double) & cross_lsmask=0
+
+  ;DISTANCE RELATIVE TO COASTLINE (KM)
+  ;DISTANCE FROM LAT/LON
+    nxhov=n_elements(xlon)
+    xhov=fltarr(nxhov)
+    for ix=0,nxhov-1 do $
+      xhov[ix]=111.*sqrt( (xlon[ix]*cos(xlat[ix]*!dtor))^2 + xlat[ix]^2 ) ; Converts to km
+    xhov=reverse(xhov)
+  ;ADJUST BY COASTLINE LOCATION
+    ixcheck=indgen(nxhov/2)+nxhov/2
+    ixcoast=(where(lsmask[ixcheck] gt 0.5))[0]
+    xcoast=xhov[ixcheck[ixcoast]]
+    xhov-=xcoast
+
+  if icross eq 3 then $
+    xhov=reverse(xhov)
+
+
+
+;I STOPPED UPDATING THIS BECAUSE THERE'S A SUBSECTION OF run_imerg_windhist_dhov THAT WILL PRODUCE THE MEAN
 
 ;IMERG
   cross=cross_diag(imerg,lonim,latim,width,x_bounds=xcross,y_bounds=ycross,lonout=xlon_im,latout=xlat_im)

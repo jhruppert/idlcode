@@ -31,24 +31,25 @@ imaria=1 ; zoom in around Maria or Haiyan?
 
   area = [min(y),min(x),max(y),max(x)]
 
-  if imaria then $
-;;    area=[10,-69,19.8,-53]
-;    area=[11,-68,21,-52] ; WSPD HISTORY ZOOM
-;    area=[12.5,-64.5,19.5,-55] ; WSPD HISTORY ZOOM (SMALL)
-    area=[12.5,-68,20,-55.5] ; PNAS PAPER
-    ;FOR HAIYAN
-    if strmatch(figspecs.figname,'*haiy*') then begin
-      area[[0,2]]-=5.1       ; PNAS PAPER - TURN IMARIA ON
-      area[[1,3]]+=127.+63.8
-      ;EXPAND FOR HAIYAN
-;        dx=area[3]-area[1]
-;        dy=area[2]-area[0]
-;        fac=1.4
-;        area[0]=6 & area[2]=area[0]+dy*fac
-;        area[1]=min(x)+0.2 & area[3]=area[1]+dx*fac
-    endif
-;    area=[7,-73.2,24,-49]
-;    area=[10,-70,22,-52] ; OLR ZOOM
+;  if imaria then $
+;;;    area=[10,-69,19.8,-53]
+;;    area=[11,-68,21,-52] ; WSPD HISTORY ZOOM
+;;    area=[12.5,-64.5,19.5,-55] ; WSPD HISTORY ZOOM (SMALL)
+;    area=[12.5,-68,20,-55.5] ; PNAS PAPER
+;    ;FOR HAIYAN
+;    if strmatch(figspecs.figname,'*haiy*') then begin
+;      area[[0,2]]-=5.1       ; PNAS PAPER - TURN IMARIA ON
+;      area[[1,3]]+=127.+63.8
+;area=[9.8,125,12.7,128.4]
+;      ;EXPAND FOR HAIYAN
+;;        dx=area[3]-area[1]
+;;        dy=area[2]-area[0]
+;;        fac=1.4
+;;        area[0]=6 & area[2]=area[0]+dy*fac
+;;        area[1]=min(x)+0.2 & area[3]=area[1]+dx*fac
+;    endif
+;;    area=[7,-73.2,24,-49]
+;;    area=[10,-70,22,-52] ; OLR ZOOM
 
   ;AREA BASED ON TC LOC (COMMENT THIS OUT FOR WSPD HISTORY)
 ;    if imaria and keyword_set(loc_pmin) then begin
@@ -74,7 +75,7 @@ imaria=1 ; zoom in around Maria or Haiyan?
   loadct,figspecs.col_table,/silent,file=dirs.ctfil
 
   ;FILL SHADING
-    for i=0,1 do $
+;    for i=0,1 do $
       contour,var*figspecs.scale,x,y,/cell_fill,/overplot,$
         levels=figspecs.levels,c_colors=figspecs.colors
 
@@ -141,7 +142,8 @@ imaria=1 ; zoom in around Maria or Haiyan?
 ;;;    lons=indgen(8)*10+50 & lonnames=strtrim(lons,2)+'!9%!XE'
 ;;;    ;for i=1,14,2 do lonnames[i]=''
 ;;;    map_grid,/box_axes,lats=lats,lons=lons,charsize=csize*0.8,color=0
-;    map_grid,/box_axes,latdel=5,londel=5,color=0,charsize=csize*0.60,glinethick=1.5,glinestyle=1,/no_grid
+    map_grid,/box_axes,latdel=5,londel=5,color=0,charsize=csize*0.60,glinethick=1.5,glinestyle=1,/no_grid
+;    map_grid,/box_axes,latdel=1,londel=1,color=0,charsize=csize*0.60,glinethick=1.5,glinestyle=1;,/no_grid
 
   ;COLOR BAR
   if figspecs.icbar then begin
@@ -161,7 +163,7 @@ imaria=1 ; zoom in around Maria or Haiyan?
 
   device,/close
 
-  convert_png,figspecs.figname,res=400,/remove_eps
-;  convert_png,figspecs.figname,res=300,/remove_eps
+;  convert_png,figspecs.figname,res=400,/remove_eps
+  convert_png,figspecs.figname,res=200,/remove_eps
 
 end

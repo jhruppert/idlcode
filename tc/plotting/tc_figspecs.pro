@@ -166,7 +166,7 @@ if ~keyword_set(idcomp) then idcomp=0
     levels=findgen(ncols)/(ncols-1)*(max-min)+min
 
 ;VAR = AVOR
-  endif else if var_str eq 'AVOR' then begin
+  endif else if var_str eq 'AVOR' or var_str eq 'avor' then begin
 
     cbar_format='(i3)'
     cbar_tag='AVOR [ 10!U-5!N s!U-1!N ]'
@@ -174,7 +174,7 @@ if ~keyword_set(idcomp) then idcomp=0
 
     scale=1.
 
-    col_table=13;66;16
+    col_table=16;13;66;16
     icbar=1
 
     ndivs=6
@@ -182,7 +182,7 @@ if ~keyword_set(idcomp) then idcomp=0
 
     ncols=21;15;5
     colors=findgen(ncols)/(ncols-1)*255;/2+255/2
-    colors=reverse(colors)
+;    colors=reverse(colors)
 
     max=60;20
     if keyword_set(setmax) then max=setmax
@@ -440,6 +440,31 @@ max=3
     cbar_format='(i4)'
     cbar_tag='SLP [ hPa ]'
     title='SLP'
+
+    scale=1.;e-2
+
+    col_table=66
+    icbar=1
+
+    ndivs=6
+    if keyword_set(setndivs) then ndivs=setndivs
+
+    ncols=15;5
+    colors=findgen(ncols)/(ncols-1)*255;/2+255/2
+    colors=reverse(colors)
+
+    max=120
+    if keyword_set(setmax) then max=setmax
+    min=0
+    if keyword_set(setmin) then min=setmin
+    levels=findgen(ncols)/(ncols-1)*(max-min)+min
+
+;VAR = Z - Geopotential height
+  endif else if var_str eq 'z' or var_str eq 'Z' then begin
+
+    cbar_format='(i4)'
+    cbar_tag='Height [ m ]'
+    title='Height'
 
     scale=1.;e-2
 
@@ -790,6 +815,7 @@ max=3
     cint=5;3;0.5
     if keyword_set(set_cint) then cint=set_cint
     clevs=(findgen(50)+1)*cint
+clevs=[15,30]
 
 ;  clevs=2^(indgen(9))
 ;;  cint=2;0.5

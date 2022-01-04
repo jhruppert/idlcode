@@ -187,8 +187,8 @@ s1=20
     ;SIMPLY ZERO OUT FREQUENCIES OUTSIDE DESIRED RANGE
       ifreq=where(per ge iper[0] and per le iper[1])
 
-      butter_band=fltarr(nt)
-      butter_band[ifreq]=1.
+      band=fltarr(nt)
+      band[ifreq]=1.
 
     figname='butterworth_'+tag
 ;    plot_butter,freq,butter_band,figname,s0=s0,s1=s1
@@ -197,15 +197,15 @@ s1=20
 ;      print,per[where(butter_band ge 0.25)]
 ;      print
 
-    if i3d then butter_band=transpose(rebin(butter_band,nt,nx,ny),[1,2,0])
+    if i3d then band=transpose(rebin(band,nt,nx,ny),[1,2,0])
 
     if iband eq 1 then begin
       if i3d then temp_fft1=fft(var,-1,dimension=3) $; DO NOT NEED TO RECALCULATE THIS A 2ND TIME
       else        temp_fft1=fft(var,-1)
     endif
 
-    if i3d then var_filt = real_part ( fft(temp_fft1*butter_band,1,dimension=1) ) $
-    else        var_filt = real_part ( fft(temp_fft1*butter_band,1) )
+    if i3d then var_filt = real_part ( fft(temp_fft1*band,1,dimension=1) ) $
+    else        var_filt = real_part ( fft(temp_fft1*band,1) )
 
   endif else message,'Bad TYPE specified'
 

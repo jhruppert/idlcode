@@ -20,6 +20,9 @@ function read_nc_era5, time_read, ncfile, varname, $
   lon=lon, lat=lat
 
   ;DIMS
+  iallmean=0
+  if strmatch(ncfile,'*allmean*') then iallmean=1
+
     lon=read_nc_var(ncfile,'lon')
     lat=read_nc_var(ncfile,'lat')
 
@@ -35,6 +38,7 @@ function read_nc_era5, time_read, ncfile, varname, $
     ncdf_close,cdfid
 
     ;TIME SUBSET
+    if ~iallmean then begin
       time=reform(read_nc_var(ncfile,'time')) ; Hours since 2000-01-01 00:00:00Z
       nt=n_elements(time)
       if time[0] gt 1e7 then $
@@ -49,6 +53,10 @@ function read_nc_era5, time_read, ncfile, varname, $
       it1=it1[0]
       ntread=it1-it0+1
       it=indgen(ntread)+it0
+    endif else begin
+      ntread=1
+      it=0 & it0=0
+    endelse
 
     ;SPACE SUBSET
     ix0=0 & iy0=0

@@ -21,6 +21,8 @@ icross=1 ; Which cross section for unorm calculation?
 
 ;BOUNDS FOR PLOTTING
   bounds=[62,5,103,28] ; SASM region
+  bounds=[66,2,108,25] ; SASM region
+;  bounds=[60,-20,156,34] ; Eastern hemisphere
 
 ;ERAi SETTINGS
 ;LEVEL SELECTION
@@ -50,8 +52,8 @@ dat_str='2000-2020'
   compdir=outdir+'unorm_composites/'
 
   maindir=dirs.wkdir
-  era_dir=maindir+'era5/'
-  era_fil=era_dir+'ERA5-20000101-20201231-pl_dayavg.nc'
+;  era_dir=maindir+'era5/'
+;  era_fil=era_dir+'ERA5-20000101-20201231-pl_dayavg.nc'
 
   npd_im=48
 ;  if keyword_set(skip) then npd_im/=skip
@@ -150,9 +152,10 @@ dat_str='2000-2020'
 
 ;----BINNING--------------------
 
-  bins = ['-1','-0.5','-0.25','0.25','0.5','1']
+;  bins = ['-1','-0.5','-0.25','0.25','0.5','1']
 
-  nbin=n_elements(bins)-1
+;  nbin=n_elements(bins)-1
+nbin=8
 
 for iband=1,2 do begin ; Biweekly / Intraseasonal
 
@@ -168,32 +171,43 @@ for iband=1,2 do begin ; Biweekly / Intraseasonal
 ;    stdd=std_intra
   endif
 
-  for ibin=0,nbin-1 do begin
+;  for ibin=0,nbin-1 do begin
 
-    bin_txt = [ bins[ibin] , bins[ibin+1] ]
+;    bin_txt = [ bins[ibin] , bins[ibin+1] ]
 ;    bin_p = float(bin_txt) * stdd
 ;    it_sel = where((uband ge bin_p[0]) and (uband le bin_p[1]),np_p)
 ;    print,'Count-p:',np_p
-    bintag=strtrim(ibin+1,2)
+;    bintag=strtrim(ibin+1,2)
 
-    filetag=bandtag+'_'+bintag
-    title_tag=' ('+bin_txt[0]+' to '+bin_txt[1]+' sigma)'
+    filetag=bandtag;+'_'+bintag
+;    title_tag=' ('+bin_txt[0]+' to '+bin_txt[1]+' sigma)'
 
-rain=fltarr(ny,nx,npd_im)
-for it=0,npd_im-1 do begin
-  hrstr=string(it,format='(i2.2)')
+;rain=fltarr(ny,nx,npd_im)
+;for it=0,npd_im-1 do begin
+;  hrstr=string(it,format='(i2.2)')
 ;    rain_file=compdir+'imerg_3B-HHR.MS.MRG.3IMERG.V06_jjas_'+dat_str+'_unormcomp_'+filetag+'.nc4'
-    rain_file=compdir+'3B-HHR.MS.MRG.3IMERG.2000-2020_JJAS_cross'+strtrim(icross,2)+'_'+hrstr+'H_'+dat_str+'_unormcomp_'+filetag+'.nc4'
+;    rain_file=compdir+'3B-HHR.MS.MRG.3IMERG.2000-2020_JJAS_cross'+strtrim(icross,2)+'_'+hrstr+'H_'+dat_str+'_unormcomp_'+filetag+'.nc4'
+    rain_file=compdir+'3B-HHR.MS.MRG.3IMERG.2000-2020_JJAS_cross'+strtrim(icross,2)+'_'+dat_str+'_unormcomp_'+filetag+'_8cyc.nc4'
 ;    if iwrite then begin
 ;      rain=mean(rain_sav[*,*,*,it_sel],dimension=4,/nan,/double)
 ;      write_sing_ncvar,rain_file,rain,'rain',dim1=lon,dim2=lat,dimtag1='lon',dimtag2='lat'
 ;      continue ; SKIP PLOTTING IF WRITING OUT
 ;    endif else begin
-      rain[*,*,it]=read_nc_var(rain_file,'rain')
+;      rain[*,*,it]=read_nc_var(rain_file,'rain')
+      rain_sav=read_nc_var(rain_file,'rain_ucomp') ; mm/h [ y, x, npd_im , nbin ]
 ;      lon=read_nc_var(rain_file,'lon')
 ;      lat=read_nc_var(rain_file,'lat')
 ;    endelse
-endfor
+;endfor
+
+for ibin=0,nbin-1 do begin
+
+  bintag=strtrim(ibin+1,2)
+  title_tag='Phase '+bintag;' ('+bin_txt[0]+' to '+bin_txt[1]+' sigma)'
+
+  filetag=bandtag+'_'+bintag
+
+  rain=reform(rain_sav[*,*,*,ibin])
 
   rain*=24. ; mm/hr --> mm/d
   rmean=mean(rain,dimension=3,/nan,/double)
@@ -284,6 +298,7 @@ colors=reverse(colors)
 
   endif
 
+
   figname+='_'+filetag
 
   ;PLOT SPECS
@@ -358,7 +373,7 @@ endif else setlevels=0
 
 endfor ; iplot
 
-  endfor ; ibin
+endfor ; ibin
 
 endfor ; iband
 

@@ -6,36 +6,28 @@
 ; 
 pro run_enstc_azim_cross
 
-tcname='maria'
-case_str='ctl'
+;tcname='maria'
+tcname='haiyan'
+case_str='ctl';'ncrf';'ctl'
 
-if tcname eq 'maria' then begin
-  tcyear='2017'
-  hurdat=read_hurdat(tcname,tcyear)
-endif else if tcname eq 'haiyan' then begin
-  tcyear='2013'
-  hurdat=read_jtwcdat(tcname)
-endif
+;if tcname eq 'maria' then begin
+;  tcyear='2017'
+;  hurdat=read_hurdat(tcname,tcyear)
+;endif else if tcname eq 'haiyan' then begin
+;  tcyear='2013'
+;  hurdat=read_jtwcdat(tcname)
+;endif
 
 dom='d02'
-tc_ens_config, case_str, dom, dirs=dirs, dims=dims, vars=vars;, /verbose
+tc_ens_config, tcname, case_str, dom, dirs=dirs, dims=dims, vars=vars;, /verbose
 dirs.figdir+=tcname+'/'
 
-;PLOT TIME BOUNDS FOR FIRST TIME STEP
-  if tcname eq 'maria' then begin
-;    d0=16.5 & d1=18.5 ; for SEQ, paper
-    d0=16.0 & d1=18.0 ; for SEQ, paper
-;    d0=17.6 & d1=17.7 ; 3 h centered on local noon
-;    d0=16 & d1=18
-  endif
-  if tcname eq 'haiyan' then begin
-    d0=3.0 & d1=4.0 ; for SEQ, paper
-  endif
-
-;CALCULATE HOUR INDICES
-  if tcname eq 'maria' then dd0=14.5
-  if tcname eq 'haiyan' then dd0=1
-  hr_plot0=round(([d0,d1]-dd0)*24)
+;TIME SPECS
+  nt_full=dims.nt
+  npd=dims.npd
+  nhrs=1.*nt_full*npd/24.
+  nd=(1.*nhrs-(nhrs mod 24))/24.
+  time_hrs=indgen(nhrs)
 
 ;RADIUS SUBSAMPLE
   rad_sel=[0,1300];1800];800] ; km , max=1300 km for redux
@@ -44,29 +36,16 @@ dirs.figdir+=tcname+'/'
 ;for iex=0,dirs.nens-1 do begin
 for iex=0,0 do begin
 
-  hr_plot=hr_plot0+dhr*iex
-
-  hr_tag_check=string(hr_plot[0],format='(i3.3)')+'-'+string(hr_plot[1],format='(i3.3)')+'hr'
-  print,'Plotting: ',hr_tag_check
-
-;EXTRA TIME SPECS
-  nt_full=dims.nt-1
-  if strmatch(subdir,'redux*') then nt_full+=1
-  npd=dims.npd
-  nhrs=1.*nt_full*npd/24.
-  nd=(1.*nhrs-(nhrs mod 24))/24.
-  time_hrs=indgen(nhrs)
-
 ;AZIM FILES
-  if tcname eq 'maria'  then hr_sel=[24,120]
-  if tcname eq 'haiyan' then hr_sel=[24,144]
-  if strmatch(subdir,'redux*') then begin
-    if tcname eq 'maria'  then hr_sel=[0,144]
-    if tcname eq 'haiyan' then hr_sel=[0,168]
-  endif
-  t_ind=where((time_hrs ge hr_sel[0]) and (time_hrs le hr_sel[1]))
-  t_ind=t_ind[where(t_ind le nt_full-1)]
-  nt_sav=n_elements(t_ind)
+;  if tcname eq 'maria'  then hr_sel=[24,120]
+;  if tcname eq 'haiyan' then hr_sel=[24,144]
+;  if strmatch(subdir,'redux*') then begin
+;    if tcname eq 'maria'  then hr_sel=[0,144]
+;    if tcname eq 'haiyan' then hr_sel=[0,168]
+;  endif
+;  t_ind=where((time_hrs ge hr_sel[0]) and (time_hrs le hr_sel[1]))
+;  t_ind=t_ind[where(t_ind le nt_full-1)]
+;  nt_sav=n_elements(t_ind)
 
 
 ;----PLOT OPTIONS--------------------
@@ -87,7 +66,6 @@ var1_str='RTHRATLW'
 ;var1_str='v_tan'
 ;var1_str='mfr' ; Vertical mass flux
 ;var1_str='mfz' ; Radial mass flux
-var1_str='slp'
 
 iremove_ctl=0 ; remove CTL?
 

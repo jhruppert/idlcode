@@ -140,6 +140,32 @@ if ~keyword_set(idcomp) then idcomp=0
     if keyword_set(setmin) then min=setmin
     levels=findgen(ncols)/(ncols-1)*(max-min)+min
 
+;VAR = NGMS
+  endif else if var_str eq 'ngms' then begin
+
+    cbar_format='(f4.1)'
+    cbar_tag='[ - ]'
+    title='NGMS'
+    icbar=1
+
+    scale=1.
+
+    col_table=71
+    irev=0
+
+    ndivs=1
+    if keyword_set(setndivs) then ndivs=setndivs
+
+    ncols=15
+    colors=findgen(ncols)/(ncols-1)*255
+    if irev then colors=reverse(colors)
+
+    max=2
+    if keyword_set(setmax) then max=setmax
+    min=-1.*max
+    if keyword_set(setmin) then min=setmin
+    levels=findgen(ncols)/(ncols-1)*(max-min)+min
+
 ;VAR = MADV
   endif else if var_str eq 'madv' then begin
 

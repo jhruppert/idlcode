@@ -6,20 +6,20 @@
 ; 
 pro run_enstc_maps
 
-tcname='maria'
-;tcname='haiyan'
-case_str='ctl'
+;tcname='maria'
+tcname='haiyan'
+case_str='ctl';'ncrf';'ctl'
 
-if tcname eq 'maria' then begin
-  tcyear='2017'
-  hurdat=read_hurdat(tcname,tcyear)
-endif else if tcname eq 'haiyan' then begin
-  tcyear='2013'
-  hurdat=read_jtwcdat(tcname)
-endif
+;if tcname eq 'maria' then begin
+;  tcyear='2017'
+;  hurdat=read_hurdat(tcname,tcyear)
+;endif else if tcname eq 'haiyan' then begin
+;  tcyear='2013'
+;  hurdat=read_jtwcdat(tcname)
+;endif
 
 dom='d02'
-tc_ens_config, case_str, dom, dirs=dirs, dims=dims, vars=vars;, /verbose
+tc_ens_config, tcname, case_str, dom, dirs=dirs, dims=dims, vars=vars;, /verbose
 dirs.figdir+=tcname+'/'
 
 ;----PLOT OPTIONS--------------------
@@ -34,6 +34,7 @@ allvars=['olr'];,'pw','olr','pw']
 ;allvars=['rainrate']
 allvars=['avor']
 allvars=['slp']
+allvars=['ngms']
 ;allvars=['wspd']
 ;allvars=['z']
 nvsel=n_elements(allvars)
@@ -67,10 +68,6 @@ nvsel=n_elements(allvars)
 loc=fltarr(dirs.nens,2,nt_full)
 loc[*]=!values.f_nan
 
-;VORTEX LEVEL
-  psel=700 ; (hPa) level to locate vortex
-  izsel=(where(dims.pres eq psel))[0]
-
 ;LAND MASK
   vtag='LANDMASK'
   file=dirs.files_raw[0,2,0]
@@ -83,64 +80,12 @@ loc[*]=!values.f_nan
 ;for ic=0,dirs.nens-1,2 do begin
 for ic=0,0 do begin
 
-  print,'Memb: ',ic
-
-;  ipmin = wrf_pres_min(dirs.casedir[ic],/local)
+  print,'Memb: ',ic+1
 
     i_nt=nt_full
     it_test=indgen(i_nt)+nt_full-i_nt
-
-  if itcloc then begin
-
-  ;TC TRACK
-      ;READ ABSOLUTE VORTICITY
-        iv=where(vars.vars eq 'AVOR')
-        file=dirs.files_post[ic,iv]
-        count=[dims.nx,dims.ny,1,i_nt] & offset=[0,0,izsel,0] ; x,y,z,t
-        avor=reform(read_nc_var(file,'AVOR',count=count,offset=offset))
-      specs=size(avor,/dimensions)
-      ;SMOOTH
-        ixsmooth=round(111./3) ; 1-degree smoothing, run twice
-        ismooth=[ixsmooth,ixsmooth,0]
-        for i=1,2 do $
-          avor=smooth(temporary(avor),ismooth,/edge_truncate,/nan)
-      ;MASKING
-        imask=fltarr(dims.nx,dims.ny,i_nt)
-        for it=0,i_nt-1 do imask[*,*,it]=mask
-        land=where(imask eq 1,nland)
-        if nland gt 0 then avor[land]=!values.f_nan
-        if tcname eq 'maria' then avor=wrf_maria_mask(temporary(avor),time[it_test],hurdat,dims)
-        if tcname eq 'haiyan' then avor=wrf_haiyan_mask(temporary(avor),time[it_test],hurdat,dims)
-      ;VORTEX TRACKING
-        vloc=maria_vortex_locate(avor,dims)
-        loc[ic,0,it_test]=vloc[0,*];ipmin.lon
-        loc[ic,1,it_test]=vloc[1,*];ipmin.lat
-
-  ;PRINT WIND SPEED
-  ;MAX WIND
-    vtag='U10'
-;    iv=where(vars.vars eq vtag)
-    iv=where(strmatch(reform(dirs.files_post[ic,*]),'*'+vtag+'*'),count)
-    file=dirs.files_post[ic,iv]
-    count=[dims.nx,dims.ny,1,i_nt] & offset=[0,0,0,0] ; x,y,z,t
-    u=reform(read_nc_var(file,vtag,count=count,offset=offset))
-    vtag='V10'
-;    iv=where(vars.vars eq vtag)
-    iv=where(strmatch(reform(dirs.files_post[ic,*]),'*'+vtag+'*'),count)
-    file=dirs.files_post[ic,iv]
-    count=[dims.nx,dims.ny,1,i_nt] & offset=[0,0,0,0] ; x,y,z,t
-    v=reform(read_nc_var(file,vtag,count=count,offset=offset))
-    wspd_sav=sqrt(u^2+v^2)
-    u=0 & v=0
-
-    ;MASKING
-      if nland gt 0 then wspd_sav[land]=!values.f_nan
-      if tcname eq 'maria' then wspd_sav=wrf_maria_mask(temporary(wspd_sav),time[it_test],hurdat,dims)
-
-    wspd_sav=max(max(temporary(wspd_sav),dimension=1,/nan),dimension=1,/nan)
-
-  endif ; itcloc
-
+    i_nt=2
+    it_test=96
 
 ;IVAR LOOP
 for ivar_sel=0,nvsel-1 do begin
@@ -229,6 +174,62 @@ print,'VAR: ',var_str
           var[*,*,it]-=varm
         endfor
       endif
+  endif else if var_str eq 'ngms' then begin
+    ;NORMALIZED GROSS MOIST STABILITY (SOBEL ET AL. 2014, JAS)
+
+      iv=where(vars.vars eq 'W')
+      file=dirs.files_post[ic,iv]
+      count=[dims.nx,dims.ny,dims.np,i_nt] & offset=[0,0,0,it_test[0]] ; x,y,z,t
+      w=reform(read_nc_var(file,'W',count=count,offset=offset)) ; m/s
+      iv=where(vars.vars eq 'QVAPOR')
+      file=dirs.files_post[ic,iv]
+      count=[dims.nx,dims.ny,dims.np,i_nt] & offset=[0,0,0,it_test[0]] ; x,y,z,t
+      qv=reform(read_nc_var(file,'QVAPOR',count=count,offset=offset)) ; kg/kg
+      iv=where(vars.vars eq 'T')
+      file=dirs.files_post[ic,iv]
+      count=[dims.nx,dims.ny,dims.np,i_nt] & offset=[0,0,0,it_test[0]] ; x,y,z,t
+      tmpk=reform(read_nc_var(file,'T',count=count,offset=offset)) ; K
+
+      ;RHO
+        tvirt = tmpk*(1.+0.61*qv)
+        rho=tvirt
+        for iz=0,dims.np-1 do rho[*,*,iz,*] = dims.pres[iz]*1e2 / ( 287. * tvirt[*,*,iz,*] )
+        tvirt=0
+      ;HEIGHT FROM HYDROSTATIC
+        z = rho & z[*]=0.
+        for iz=1,dims.np-1 do $
+          z[*,*,iz,*] = z[*,*,iz-1,*] + (dims.pres[iz-1]-dims.pres[iz])*1e2 / 9.81 / mean(reform(rho[*,*,iz-1:iz,*]),dimension=3,/double,/nan)
+        rho=0
+      dse = 1004.*tmpk + 9.81*z ; J/kg
+      mse = dse + qv*2.5e6      ; J/kg
+
+      ;SMOOTH INPUT FIELDS
+        ;ix_sm=round(1./(dims.lat[1]-dims.lat[0])) ; 1-degree
+        ix_sm=9
+        ismooth=[ix_sm,ix_sm,0,0]
+        nsm=10;29
+        for i=0,nsm-1 do begin
+          w=smooth(temporary(w),ismooth,/edge_truncate,/nan)
+          dse=smooth(temporary(dse),ismooth,/edge_truncate,/nan)
+          mse=smooth(temporary(mse),ismooth,/edge_truncate,/nan)
+        endfor
+
+      ;VERTICAL ADVECTION
+        ddpd = tmpk & ddpd[*]=0.
+        ddpm = ddpd
+        for ix=0,dims.nx-1 do $
+          for iy=0,dims.ny-1 do $
+            for it=0,i_nt-1 do begin
+              ddpd[ix,iy,*,it]=deriv(dims.pres*1e2,reform(dse[ix,iy,*,it]))
+              ddpm[ix,iy,*,it]=deriv(dims.pres*1e2,reform(mse[ix,iy,*,it]))
+            endfor
+        vadvd = w * ddpd
+        vadvm = w * ddpm
+
+      vadvd_int = total(vadvd*100e2,3,/double)/9.81
+      vadvm_int = total(vadvm*100e2,3,/double)/9.81
+      var = vadvm_int / vadvd_int ; Unitless
+
   endif else begin
 
     if var_str eq 'rainrate' then iv_str=var_str else iv_str=strupcase(var_str)
@@ -326,24 +327,6 @@ print,'VAR: ',var_str
 
 ;----CREATE PLOTS--------------------
 
-;2D LON/LAT
-  ilon=fltarr(dims.nx,dims.ny)
-  ilat=ilon
-  for ix=0,dims.nx-1 do ilat[ix,*]=dims.lat
-  for iy=0,dims.ny-1 do ilon[*,iy]=dims.lon
-
-  ;VARIABLE FOR PLACING CONTOUR AROUND RADIUS THRESHOLD
-  filler=fltarr(dims.nx,dims.ny)
-
-  ;SETTINGS FOR GAUSS FILTER AND MASKING
-    dx_sigma=111. ; 2 x sigma [km]
-    dx = 111.*(dims.lat[1]-dims.lat[0]) ; delta-x in km
-    sigma=dx_sigma/dx/2.
-    radmax=7. ; radius limit (in degrees) from Best Track center
-    m2deg=1./(111e3)
-
-
-
   if var_str eq 'th_e' then begin
     setmin=340
     setmax=370
@@ -376,10 +359,13 @@ setmin=-5
   endif else if var_str eq 'SST' then begin
     setmin=26
     setmax=32
+  endif else if var_str eq 'ngms' then begin
+    setmin=-2
+    setmax=2
   endif
-
+print,var_str
   tc_figspecs, var_str, figspecs, setmin=setmin, setmax=setmax, set_cint=5
-  figdir=dirs.figdir+'/'+var_str+'/'
+  figdir=dirs.figdir+var_str+'/'
   spawn,'mkdir '+figdir,tmp,tmpe
   figspecs=create_struct(figspecs,'figname',' ')
 ;  figspecs.title+=' ('+strupcase(dirs.cases[ic]);+')'
@@ -390,7 +376,8 @@ setmin=-5
   skip=12
   t1=72
 ;  for it=24,120,skip do begin
-  for it=96,120,6 do begin
+;  for it=96,120,6 do begin
+  for it=0,0 do begin
 ;  for it=t1,t1 do begin
 
   if var_str eq 'rainrate' then itop-=1
@@ -406,7 +393,7 @@ setmin=-5
     t_stamp=string(mm,format='(i2.2)')+'/'+string(dd,format='(i2.2)')+' '+string(hh,format='(i2.2)')+'00 UTC'
     print,t_stamp
 
-    if count eq 0 then continue
+;    if count eq 0 then continue
 
 ;    tim_tag='d'+string(it,format='(i2.2)')
 ;    tim_tag='h'+string(time_hrs[it]+hr_sel[0],format='(i2.2)')
@@ -435,37 +422,22 @@ setmin=-5
       cvar=sqrt(iu^2+iv^2)
     endif
 
-    ;GAUSSIAN FILTER (settings as in tc_track.pro)
-;      if ~keyword_set(kernel) then $
-;        ivar_sm=gauss_smooth(ivar,sigma,/edge_truncate,/nan,kernel=kernel) $
-;      else $
-;        ivar_sm=convol(ivar,kernel,total(kernel),/edge_truncate)
-;ix_sm=round(111./3/2) ; 0.5-degree
-ix_sm=round(1./(dims.lat[1]-dims.lat[0])/2) ; 0.5-degree
-ismooth=[ix_sm,ix_sm]
-ivar -= mean(var,dimension=3,/nan,/double)
-;for i=1,2 do $
-ivar_sm=smooth(ivar,ismooth,/edge_truncate,/nan)
-
-    ; MASK BASED ON TRACK OF REAL STORM (from tc_track.pro)
-        t_diff=abs(time[it]-hurdat.jultim)
-        ithd=(where(t_diff eq min(t_diff)))[0]
-        ;PREDICT LOCATION AS X1 = X_0 + CX_0*DT
-        dt = (time[it]-hurdat.jultim[ithd])*86400d ; s
-        cx = hurdat.motion_x[ithd] ; m/s
-        cy = hurdat.motion_y[ithd] ; m/s
-        hdlat = hurdat.lat[ithd] + cy*dt*m2deg
-        hdlon = hurdat.lon[ithd] + cx*dt*m2deg/(cos(hdlat*!dtor))
-        radius=sqrt( (ilon-hdlon)^2 + (ilat-hdlat)^2 )
-        inan=where(radius ge radmax)
-        filler[*]=0
-        filler[inan]=2.
-        figspecs.clevs=[1,10]
-    cvar=filler
+    ;SMOOTHING
+    if var_str eq 'slp' then begin
+      ;ix_sm=round(111./3/2) ; 0.5-degree
+      ;ix_sm=round(1./(dims.lat[1]-dims.lat[0])/2) ; 0.5-degree
+      ix_sm=9;round(1./(dims.lat[1]-dims.lat[0])) ; 1-degree
+      ismooth=[ix_sm,ix_sm]
+      ivar -= mean(var,dimension=3,/nan,/double)
+      nsm=5
+      for i=1,nsm do $
+        ivar=smooth(temporary(ivar),ismooth,/edge_truncate,/nan)
+    endif
 
     figname=figdir+tim_tag+'_'+var_str+'_'+dirs.memb[ic]
     if var_str eq 'avor' then figname+='_'+string(psel,format='(i3.3)')
     figspecs.figname=figname
+    print,figname
 
     ;HURDAT LOCATION
 ;    tdiff=abs(hurdat.jultim - time[it_test[it_sel]])
@@ -484,23 +456,11 @@ ivar_sm=smooth(ivar,ismooth,/edge_truncate,/nan)
 
     if ishear then ishr=reform(shr[*,it_sel])
 
-;stop
-;for ipl=0,1 do begin
-for ipl=1,1 do begin
-  if ipl eq 0 then begin
-    iivar=ivar
-    ;figspecs.figname=figname
-  endif else begin
-    iivar=ivar_sm
-    figspecs.figname=figname+'_sm'
-  endelse
-    stats,iivar
-    wrf_enstc_map_plot, dirs, iivar, dims.lon, dims.lat, figspecs, wind=wind, loc_pmin=reform(loc[ic,*,it_test[it_sel]]), cvar=cvar, $
+    wrf_enstc_map_plot, dirs, ivar, dims.lon, dims.lat, figspecs, wind=wind, loc_pmin=reform(loc[ic,*,it_test[it_sel]]), cvar=cvar, $
       itcloc=itcloc, shr=ishr
-endfor
 ;    wrf_tc_map_plot, dirs, ivar, dims.lon, dims.lat, figspecs, wind=wind, loc_pmin=reform(loc[ic,*,it_test[it_sel]]), itcloc=itcloc, shr=ishr
 ;    wrf_tc_smoothcomp_map, dirs, ivar, ivar_sm, dims.lon, dims.lat, figspecs, wind=wind, loc_pmin=reform(loc[ic,*,it_test[it_sel]]), cvar=filler, itcloc=itcloc, shr=ishr
-
+exit
   endfor
 
 endfor ; icase

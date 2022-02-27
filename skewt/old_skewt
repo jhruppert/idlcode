@@ -1,0 +1,474 @@
+;========================================================================
+;  SKEWT.PRO  (IDL CODE)
+;
+;  Draw a Skew-T, Log(P) diagram given a temperature range for your data.
+;
+;  Originator:  Andrew F. Loughe  (afl@cdc.noaa.gov)
+;               CIRES/NOAA
+;               Boulder, CO  USA
+;               This code carries no warranty or claim 
+;               as to its usefulness or accuracy!
+;
+;  A Number of the functions found in this file were converted from 
+;  FORTRAN code that was received from NCAR in Boulder, CO USA.
+;  The original source of the equations is thought to be:
+;    "Algorithms for Generating a Skew-T, Log P Diagram
+;     and Computing Selected Meteorological Quantities"
+;     by G.S. Stipanuk, White Sands Missle Range, Report ECOM-5515.
+;
+;========================================================================
+;  Function to determine position (temp, press) when the isotherms
+;  in the diagram are rotated (skewed) 45 degrees to the right.
+;  Used for finding the points needed to connect the dots when
+;  drawing ALL of the lines (except pressure).
+;  Originator: Andrew F. Loughe
+      Function Tnew, T, P
+      COMMON RANGES, trange, prange
+
+         P0   = prange(0)
+         xy1  = convert_coord( [T, P0], /data, /to_device)
+         xy2  = convert_coord( [T,  P], /data, /to_device)
+         dy   = xy2[1] - xy1[1]
+         dx   = dy     ; dx = dy for this 45-45-90 triangle
+         xy   = convert_coord( [xy2[0]+dx, xy2[1]], /device, /to_data)
+         Tnew = xy[0]
+       return, Tnew          
+       end
+;========================================================================
+;  Function to determine position (temp, press) in the unskewed
+;  coordinate system (Opposite of Tnew).
+;  Used only when placing the labels on various lines.
+;  Originator: Andrew F. Loughe
+      Function Told, T, METHOD
+      COMMON RANGES, trange, prange
+
+          P0 = prange[0]
+          P1 = prange[1]
+          
+          T0 = trange[0]
+          T1 = trange[1]
+                             
+          if (method eq 1) then begin
+             xy1 = convert_coord( [T,   P0], /data, /to_device )
+             xy2 = convert_coord( [T0,  P0], /data, /to_device )
+             dx  = xy2[0] - xy1[0]
+         
+             xy  = convert_coord( [xy2[0], xy2[1]+dx], /device, /to_data )
+           
+             xy1 = convert_coord( [xy[0],  xy[1]], /data, /to_device )
+             xy2 = convert_coord( [xy[0],     P1], /data, /to_device )
+             dy  = xy2[1] - xy1[1]
+
+             xy = convert_coord([xy1[0]+(dy/2.), xy1[1]+(dy/2.)],$
+                  /device, /to_data)
+          endif
+
+          if (method eq 2) then begin
+             xy1 = convert_coord( [T,   P0], /data, /to_device )
+             xy2 = convert_coord( [T1,  P0], /data, /to_device )
+             dx  = xy2[0] - xy1[0]
+
+             xy  = convert_coord( [xy1[0]+dx/2. , xy1[1]+dx/2.], $
+                   /device, /to_data)
+          endif
+          
+       return, xy       
+       end
+;========================================================================
+;  Function to determine the necessary trange for plotting the sounding.
+      Function T_RANGE, p_range, t, td, p
+
+      COMMON RANGES, trange, prange
+
+         trange   = [-40, 40]         ; Default which can be changed
+         if (p_range eq 0) then $
+             prange   = [1050, 100]   ; Default which can be changed
+
+;  Find number of data levels
+         szd     = size(t)
+         nlevels = szd[1]
+
+
+; Ensure that temperatures are in Celsius.
+        if ( (total(t)/nlevels)  gt 100. ) then t  = t  - 273.16
+        if ( (total(td)/nlevels) gt 100. ) then td = td - 273.16
+
+
+;  Set up dummy plot space.
+        daspect = FLOAT(!D.Y_SIZE)/FLOAT(!D.X_SIZE) * $
+                  (trange[1]-trange[0])/80.
+        margin  = 0.1
+        aspect  = 1.0 ; A square
+        x0 = 0.50 - (0.5 - margin)*(daspect/aspect)
+        y0 = margin
+        x1 = 0.50 + (0.5 - margin)*(daspect/aspect) 
+        y1 = 1.0 - margin
+
+        !P.position=[x0,y0,x1,y1]
+        plot_io, trange, prange, yrange=prange, /nodata, /xs, /ys, $
+             color=!p.background, /noerase
+
+;  Determine necessary temperature range for the diagram.
+        xx0 = fltarr(nlevels)  &  yy0=xx0  &  xx1=xx0  &  yy1=yy0
+        for i = 0, nlevels-1 do begin
+           xx0[i] = tnew( t[i],   p[i]   )
+           yy0[i] = p[i]
+           xx1[i] = tnew( td[i],  p[i]   )
+           yy1[i] = p[i]
+        endfor
+        xbegin = fix( (min(xx1)-10.) / 10. ) * 10.
+        xend   = fix( (max(xx0)+10.) / 10. ) * 10.
+
+      return, [xbegin, xend]
+      end
+
+;========================================================================
+;  Routine to plot the temperature and dew point temperature sounding 
+;  on top of a skew-T, Log(P) diagram.
+PRO plot_skewt, t, td, wspd, wdir, p, hght=hght, charsize=charsize, charthick=charthick, $;font=font, $
+                col_t=col_t, col_dewpt=col_dewpt, thick=thick, $
+                barb_size=barb_size, barb_thick=barb_thick, skip=skip, windpos=windpos
+
+COMMON RANGES, trange, prange
+
+if ~keyword_set(charsize) then charsize=1
+if ~keyword_set(charthick) then charthick=1
+charsize=charsize * 0.7
+charthick=charthick * 0.5
+
+;  Find number of data levels
+szd     = size(t)
+nlevels = szd[1]
+
+;  Define clipping space.
+clip=[trange[0],prange[0],trange[1],prange[1]]  
+
+; Ensure that temperatures are in Celsius.
+if ( (total(t)/nlevels)  gt 100. ) then t  = t  - 273.16
+if ( (total(td)/nlevels) gt 100. ) then td = td - 273.16
+
+;HEIGHT UNITS
+check=1 & units=' m'
+
+;  Overplot the data onto the digram.
+for i = 0, nlevels-2 do begin
+;  Plot temperature sounding data.
+   x0 = tnew( t[i],   p[i]   )
+   y0 = p[i]
+   x1 = tnew( t[i+1], p[i+1] )
+   y1 = p[i+1]
+   IF n_elements(col_t) EQ 1 THEN $
+     plots, [x0, x1], [y0, y1], clip=clip, noclip=0, thick=thick ,color=col_t $
+   ELSE plots, [x0, x1], [y0, y1], clip=clip, noclip=0, thick=thick
+
+;  Plot dew point temperature sounding data.
+   x0 = tnew( td[i],   p[i]   )
+   y0 = p[i]
+   x1 = tnew( td[i+1], p[i+1] )
+   y1 = p[i+1]
+   IF n_elements(col_dewpt) EQ 1 THEN $
+     plots, [x0, x1], [y0, y1], clip=clip, noclip=0, thick=thick, color=col_dewpt $
+   ELSE plots, [x0, x1], [y0, y1], clip=clip, noclip=0, thick=thick
+   
+;  Place height levels on pressure contours
+   pres=reverse(findgen(9)*100+100)
+   if total(strmatch(pres,p[i])) eq 1 and keyword_set(hght) then begin
+     loc=convert_coord([trange[0],p[i]],/data,/to_norm)
+;     xyouts,loc[0]+0.003,loc[1]-0.018,font+strtrim(string(hght[i],format='(i8)'),1),$
+     xyouts,loc[0]+0.003,loc[1]-0.018,strtrim(string(hght[i],format='(i8)'),1)+units,$
+       align=0,charsize=charsize,charthick=charthick,/norm
+     if check then begin
+       units=''
+       check=0
+     endif
+   endif
+endfor
+
+;toplev = where(p LE clip[3],nlevs)
+toplev = n_elements(p)-1
+
+;  Wind (put on vertical bar to the right of sounding)
+if n_elements(where(finite(wspd)))+n_elements(where(finite(wdir))) gt 2 then begin
+  if ~keyword_set(windpos) then begin
+    x0=trange[1] & x1=(convert_coord([1.,0.1],/normal,/to_data))[0]
+    xbar=replicate(mean([x0,x1]),2)
+  endif else begin
+    windpos=(convert_coord([windpos,0.1],/normal,/to_data))[0]
+    xbar=replicate(windpos,2)
+  endelse
+  ybar=[prange[0],prange[1]]
+  plots,xbar,ybar,linestyle=0,thick=thick*0.4,color=0,/data
+    if ~keyword_set(skip) then skip=5
+    for i=0,toplev,skip do begin
+       dev_area = convert_coord([xbar[0],p(i)], /data, /to_normal)
+       ynorm = dev_area[1] & xnorm = dev_area[0]
+       wind_barb, wspd[i], wdir[i], xnorm, ynorm,/normal,/nocircle, size=barb_size, thick=barb_thick
+    endfor
+endif
+
+end
+
+;========================================================================
+;
+;  PROCEDURE TO DRAW A SKEW-T, Log(P) DIAGRAM GIVEN A DESIRED
+;  TEMPERATURE RANGE FOR THE DATA.
+;
+;  Originator:  Andrew F. Loughe
+;
+
+
+PRO SKEWT, t_range, p_range, col_temp=col_temp, col_dry=col_dry, col_moist=col_moist, col_mixr=col_mixr, $
+           charsize=charsize, charthick=charthick, position=position, $;font=font, $
+           everyT=everyT, everyDA=everyDA, everySA=everySA, everyW=everyW, title=title, notitle=notitle
+on_error, 2
+
+COMMON RANGES, trange, prange
+
+if (n_elements(everyT)  le 0) then everyT  = 10   ; T  = Temperature
+if (n_elements(everyDA) le 0) then everyDA = 10   ; DA = Dry adiabat
+if (n_elements(everySA) le 0) then everySA = 1    ; SA = Saturated adiabat
+if (n_elements(everyW)  le 0) then everyW  = 1    ; W  = Mixing ratio
+
+;if (not keyword_set(title)) then title=font+'Skew-T, Log(P) Diagram'
+if (not keyword_set(title)) then title='Skew-T, Log(P) Diagram'
+if (keyword_set(notitle))   then title=' '
+if (n_elements(prange)) eq 0 then prange = [1050., 100]
+
+if (N_params() eq 0) then $
+   message,$
+   'EXAMPLE:  skewt, [-20, 20], everyT=10, everyDA=10, everySA=2, everyW=2'
+if (n_elements(t_range)) eq 1 then t_range=[-40., 40.]
+
+;  Set some defaults
+trange    = t_range
+prange    = p_range
+charsize  = charsize            ; Set default character size
+charthick = charthick           ; Set default character thickness
+
+;  Make plot square for arbitrarily chosen trange of 80 degrees.
+;  Code from Ken Bowman
+
+daspect = FLOAT(!D.Y_SIZE)/FLOAT(!D.X_SIZE) * (trange[1]-trange[0])/80.
+margin  = 0.1
+aspect  = 1.0 ; A square
+x0 = 0.50 - (0.5 - margin)*(daspect/aspect)
+y0 = margin
+x1 = 0.50 + (0.5 - margin)*(daspect/aspect)
+y1 = 1.0 - margin
+
+!P.POSITION = position;[x0, y0, x1, y1]    ; Set value of sytem variable.
+   
+;  Determine character height and width.  Apply charsize.
+char_ht = convert_coord([0, !d.y_ch_size], /device, /to_norm)
+char_ht = char_ht[1] * aspect
+if (!d.name ne 'X' and charsize gt 1.) then $
+    char_ht = char_ht * charsize 
+char_wd = convert_coord([0, !d.x_ch_size], /device, /to_norm)
+char_wd = char_wd[1] 
+
+;  Create the plot space.
+plot_io, trange, prange, yrange=prange, /nodata, /xs, /ys, $
+         xticklen=.01, ytickname=replicate(' ',30), charsize=charsize, $
+         title=title, charthick=charthick
+   
+;  Print PRESSURE title along the y-axis.
+lnt=alog(prange[1])  &  lnb=alog(prange[0])  &  avg=exp(.5*(lnt+lnb))
+xy = convert_coord([trange[0], avg],/data,/to_norm)
+;xyouts, xy[0]-(6.5*char_wd), xy[1], font+'Pressure (hPa)', orient=90, $
+xyouts, xy[0]-(6.5*char_wd), xy[1], 'Pressure (hPa)', orient=90, $
+       /norm, align=.5, charsize=charsize, charthick=charthick
+
+;  Print TEMPERATURE title along the x-axis.
+xy = convert_coord([.5*(trange[0]+trange[1]), prange[0]], /data, /to_norm)
+;xyouts, xy[0], xy[1]-(2.8*char_ht), font+'Temperature (!Uo!NC)', align=.5, /norm, $
+xyouts, xy[0], xy[1]-(2.8*char_ht), 'Temperature (!Uo!NC)', align=.5, /norm, $
+        charsize=charsize, charthick=charthick
+
+;  Draw Pressure labels next to tick marks along the y-axis.
+pressures = [1050,1000,900,800,700,600,500,400,300,200,100]
+for i = 0, 10 do begin
+   ytick = pressures[i]
+   if ytick ge prange[1] and ytick le prange[0] then begin
+      xy = convert_coord( [trange[0], ytick], /data, /to_norm )
+      xyouts, xy[0]-(.2*char_wd), xy[1]-(.25*char_ht), $
+;          font+strtrim(ytick,2), align=1, $
+          strtrim(ytick,2), align=1, $
+          charsize=charsize, charthick=charthick, /norm
+      plots, [trange[0], trange[1]], [ytick, ytick],thick=2 ; Horizontal line.
+   endif
+endfor
+
+clip=[trange[0],prange[0],trange[1],prange[1]]   ; Define clipping space.
+
+;  Adjust charsize/charthick for adiabat labels
+charsize=charsize * 0.7
+charthick=charthick * 0.5
+
+;========================================================================
+;  Draw skewed isotherms every "everyT (10C)"  (Lines are straight).
+for temp = trange[0]-100, trange[1]+5, everyT do begin
+   x0 = temp
+   y0 = prange[0]
+   x1 = temp
+   y1 = prange[1]
+
+;  Draw the line.
+   newx0 = tnew(x0, y0)  ; Find rotated temperature position
+   newx1 = tnew(x1, y1)  ; Find rotated temperature position
+   plots, [newx0, newx1], [y0, y1], clip=clip, noclip=0,color=col_temp
+
+;  Draw line labels 
+;  Use method #1 in xy function to determine a place for the label.
+      drew_label = 'no'
+      ;xy = Told(temp, 1) 
+      ;if ( xy[0] gt trange[0] and xy[0] lt trange[1] and $
+      ;     xy[1] gt prange[1] and xy[1] lt prange[0] ) then begin
+      ;        drew_label = 'yes'
+      ;        xyouts, xy[0], xy[1], strcompress(string(fix(temp)), /rem),$
+      ;             orient=45, align=.5, charsize=charsize,$
+      ;                charthick=2,color=60
+      ;endif
+
+;  Use method #2 in xy function to determine a place for the label.
+      if (drew_label eq 'no') then xy = Told(temp, 2) 
+      ;if ( xy[0] gt trange[0] and xy[0] lt trange[1] and $
+      ;     xy[1] gt prange[1] and xy[1] lt prange[0] and $
+      ;     drew_label eq 'no') then begin
+      ;        xyouts, xy[0], xy[1], font+strtrim(fix(temp),2),$
+      ;            orient=45, align=.5, charsize=charsize,$
+      ;                charthick=2,color=60
+      ;endif
+      
+endfor
+
+;========================================================================
+;  Draw saturated adiabats.  Begin at 40C and step backwards by 5C.
+;  These lines are curved.
+TS = 40.
+FOR TS = 40, -64, -everySA*4 DO BEGIN
+   P   = 1060.
+   TK  = TS + 273.16
+   AOS = OS(TK, 1000.)
+
+   ATSA  = TSA(AOS, P) - 273.16
+   FOR J = 0, 85 DO BEGIN
+      P0 = P
+      T0 = ATSA
+      
+      P = P - 10.
+      ATSA = TSA(AOS, P) - 273.16
+      if (j gt 0) then begin
+         newx0=tnew(T0,P0)  ; Find rotated temperature position
+         newx1=tnew(ATSA,P) ; Find rotated temperature position
+
+;  Leave a space for the labels and draw them.
+         ;if (P gt 730 or P lt 700) then $
+            plots, [newx0, newx1], [P0, P], $
+                   clip=clip, noclip=0,color=col_moist
+
+         if ( P eq 200 ) then begin
+           if (newx1 gt trange[0] and newx1 lt trange[1]) then $
+           xyouts,newx1,P-2,strtrim(fix(TS),2),align=.5,$
+                  charsize=charsize,charthick=charthick,color=col_moist
+         endif
+      endif
+   ENDFOR
+
+ENDFOR
+
+;========================================================================
+;  Draw mixing ratio lines (Lines are straight).
+;  Find temperature for a given Ws (g/kg) and Press (mb).
+
+;Ws=[ .4,.6,.8,1.,1.5,2.,2.5,4,5,6,7,8,9,10,12, $
+;     14,16,18,20,24,28,32,36,40,44,48,52,56,60,68,76,84  ]
+
+Ws=[0.2,0.5,1,2,4,8,16,32]
+
+    
+for i = 0, N_elements(Ws)-1, everyW do begin  
+   press1 = prange[0]
+   tmr1   = tmr(Ws(i), press1) - 273.16
+
+   press2 = 200.
+   tmr2   = tmr(Ws(i), press2) - 273.16
+
+   newx0=tnew(tmr1,press1) ; Find rotated temperature position
+   newx1=tnew(tmr2,press2) ; Find rotated temperature position 
+
+;  Draw the line.
+   plots, [newx0, newx1], [press1, press2], linestyle=2, $
+          clip=clip, noclip=0, thick=2, color=col_mixr
+;  Draw the line label.
+   drew_label='no'
+   if (newx0 gt trange[0] and newx0 lt trange[1]) then begin
+      drew_label='yes'
+      if (Ws[i] lt 1.0) then $
+      xyouts, newx0, press1+52, string(Ws[i],format='(f3.1)'), align=.5,$
+             charsize=charsize,charthick=charthick,color=col_mixr
+      if (Ws[i] ge 1.0) then $
+      xyouts, newx0, press1+52, strtrim(fix(Ws[i]),2),$
+              align=.5,charsize=charsize,charthick=charthick,color=col_mixr
+   endif 
+   ;if (newx1 gt trange[0] and newx1 lt trange[1]) then begin
+   ;   if (Ws[i] lt 1.0) then $
+   ;   xyouts, newx0, press1-2, string(Ws[i],format='(f3.1)'), align=.5,$
+   ;          charsize=charsize, charthick=charthick,color=col_mixr
+   ;   if (Ws[i] ge 1.0) then $
+   ;   xyouts, newx0, press1-2, strtrim(fix(Ws[i]),2),$
+   ;           align=.5, charsize=charsize,charthick=charthick,color=col_mixr
+   ;endif
+
+endfor
+
+;========================================================================
+;  Draw dry adiabats every "everyDA (10C)"  (Lines are curved).
+for temp = trange[0], trange[0]+220, everyDA do begin
+   x1  = float(temp)
+   y1  = 1050.
+   inc = -2.     ; Lines will be curved, so use a small press. increment.
+   drew_label='no'
+   icount = 0
+
+;  Dry adiabats from 1050mb up to prange[1].
+;  For a given temperature and pressure, compute theta and plot a line.
+for press = y1, prange[1], inc do begin
+   icount = icount + 1
+   x0 = float(x1)                                       ; Orig Temp
+   y0 = float(press + inc)                              ; Orig Press
+   y1 = float(y0 + inc)                                 ; New  Press
+   x1 = (temp+273.16) * ( y1 / 1000. ) ^ (287./1004.)   ; New Temp
+   x1 = x1 - 273.16
+
+   newx0 = tnew(x0, y0)  ; Find rotated temperature position
+   newx1 = tnew(x1, y1)  ; Find rotated temperature position
+
+
+;  Draw the labels.
+   if (fix(x1) eq fix(trange[0]) and drew_label eq 'no') then begin
+      drew_label='yes'
+      if ( newx1 gt trange[0] and newx1 lt trange[1] and $
+           y1 gt prange[1] and y1 lt prange[0] ) then $
+           xyouts,newx1,y1,strtrim(fix(temp),2),$
+             align=.5, charsize=charsize, orientation=-45,$
+                  charthick=charthick,color=col_dry
+   endif
+
+;  Draw the line.
+   if (icount gt 1) then $
+   plots, [newx0, newx1], [y0, y1], clip=clip, noclip=0,color=col_dry
+   if (newx1 lt trange[0]) then goto, jump2
+endfor
+
+jump2: dummy=0
+endfor
+
+;========================================================================
+; Redraw the plot boundary.
+plots, [trange[0],trange[1],trange[1],trange[0],trange[0]], $
+       [prange[0],prange[0],prange[1],prange[1],prange[0]], thick=2
+
+
+!p.position = [.05, .05, .95, .95]      ; Reset position parameter
+
+END

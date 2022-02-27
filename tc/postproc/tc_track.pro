@@ -9,7 +9,6 @@ end
 ; Procedure steps:
 ;   Large-scale smoothing of SLP in time and space
 ;   Calculated as anomaly from large-scale and time-average
-;   Location prediction based on real TC location from HURDAT
 ;
 ;  Step 2 is important given a large domain where there may be multiple vortices
 ;    and/or the target vortex is weak.
@@ -19,7 +18,7 @@ end
 ; James Ruppert
 ; 12/20/21
 ; 
-pro tc_track, slp_sav, dims, time, hurdat, trackdir=trackdir
+pro tc_track, slp_sav, dims, time, trackdir=trackdir, time_mask=time_mask
 
 ;SETTINGS
 ;  nx_sm=round(0.5*1./(dims.lat[1]-dims.lat[0])) ; Half-degree smoothing in space
@@ -52,7 +51,7 @@ pmin_thresh2=pmin_thresh1;-2.
 
 
 ;STEP 1 - MASK OUT FIRST 24 H
-  slp[*,*,0:it_zero-1]=!values.f_nan
+  if keyword_set(time_mask) then slp[*,*,0:it_zero-1]=!values.f_nan
 ;MASK OUT REGION WITHIN 8*DX OF DOMAIN EDGE
   iedge=81 ; about 2 deg
   slp[[indgen(iedge),dims.nx-1-indgen(iedge)],*,*]=!values.f_nan

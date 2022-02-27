@@ -8,10 +8,10 @@
 ; 
 pro run_enstc_plot_track
 
-tcname='maria'
-case_str='ctl'
+;tcname='maria'
 tcname='haiyan'
-case_str='haiyan'
+case_str='ctl'
+;case_str='ncrf'
 
 if tcname eq 'maria' then begin
   tcyear='2017'
@@ -22,7 +22,7 @@ endif else if tcname eq 'haiyan' then begin
 endif
 
 dom='d02'
-tc_ens_config, case_str, dom, dirs=dirs, dims=dims, vars=vars;, /verbose
+tc_ens_config, tcname, case_str, dom, dirs=dirs, dims=dims, vars=vars;, /verbose
 dirs.figdir+=tcname+'/'
 
 underlay=0 ; plot field as underlay?
@@ -93,7 +93,7 @@ endfor ; iens
 ;----CREATE PLOT--------------------
 
 
-  figname=dirs.figdir+'tracks'
+  figname=dirs.figdir+'tracks_'+case_str
 ;figname=dirs.figdir+'tracks_memb'+string(ic+1,format='(i2.2)')
 
 ;  icplot=indgen(dirs.nc)

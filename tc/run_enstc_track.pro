@@ -8,19 +8,18 @@ pro run_enstc_track
 
 ;tcname='maria'
 tcname='haiyan'
-case_str='ctl'
-case_str='haiyan'
+case_str='ncrf';'ctl'
 
-if tcname eq 'maria' then begin
-  tcyear='2017'
-  hurdat=read_hurdat(tcname,tcyear)
-endif else if tcname eq 'haiyan' then begin
-  tcyear='2013'
-  hurdat=read_jtwcdat(tcname)
-endif
+;if tcname eq 'maria' then begin
+;  tcyear='2017'
+;  hurdat=read_hurdat(tcname,tcyear)
+;endif else if tcname eq 'haiyan' then begin
+;  tcyear='2013'
+;  hurdat=read_jtwcdat(tcname)
+;endif
 
 dom='d02'
-tc_ens_config, case_str, dom, dirs=dirs, dims=dims, vars=vars;, /verbose
+tc_ens_config, tcname, case_str, dom, dirs=dirs, dims=dims, vars=vars;, /verbose
 dirs.figdir+=tcname+'/'
 
 ;VORTEX LEVEL
@@ -41,8 +40,8 @@ dirs.figdir+=tcname+'/'
 
 ;----LOOP OVER SIMULATIONS--------------------
 
-for ic=0,dirs.nens-1 do begin
-;for ic=0,4 do begin
+;for ic=0,dirs.nens-1 do begin
+for ic=4,4 do begin
 ;for ic=1,1 do begin
 
   print,'Memb: ',ic+1
@@ -58,9 +57,13 @@ for ic=0,dirs.nens-1 do begin
 ;    count=[dims.nx,dims.ny,1,nt] & offset=[0,0,0,0] ; x,y,z,t
     slp=reform(read_nc_var(file,'SLP'));,count=count,offset=offset))
 
+  ;MASK OUT FIRST 24 HOURS IF CTL
+    time_mask=0
+    if case_str eq 'ctl' then time_mask=1
+
   ;TC TRACKING
     trackdir=dirs.ensdir[ic]
-    tc_track,slp,dims,time,hurdat,trackdir=trackdir
+    tc_track,slp,dims,time,trackdir=trackdir, time_mask=time_mask
 
 endfor ; icase
 

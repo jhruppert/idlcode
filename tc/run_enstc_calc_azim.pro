@@ -23,7 +23,7 @@ endif else if tcname eq 'haiyan' then begin
 endif
 
 dom='d02'
-tc_ens_config, case_str, dom, dirs=dirs, dims=dims, vars=vars;, /verbose
+tc_ens_config, tcname, case_str, dom, dirs=dirs, dims=dims, vars=vars;, /verbose
 
 ;VAR SELECTION
 ;  vars_sel=['U10','V10','LH','OLR','OLRC','SLP','PW','GLW','GLWC','rainrate'];,$

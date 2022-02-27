@@ -4,7 +4,7 @@
 ; James Ruppert
 ; 12/20/21
 ; 
-pro tc_ens_config, case_str, dom, dirs=dirs, dims=dims, vars=vars, verbose=verbose
+pro tc_ens_config, tcname, case_str, dom, dirs=dirs, dims=dims, vars=vars, verbose=verbose
 
 ;DIRECTORIES
 
@@ -18,12 +18,12 @@ pro tc_ens_config, case_str, dom, dirs=dirs, dims=dims, vars=vars, verbose=verbo
 
 ;for ic=0,nc-1 do begin
 
-  tmpdir=dirs.scdir+'wrfenkf/ensemble/'+case_str+'/'
+  tmpdir=dirs.scdir+'wrfenkf/ensemble/'+tcname+'/'
   spawn,'ls '+tmpdir+' | grep memb',memb
 
 print,'MEMBERS: ',memb
 
-  ensdir=tmpdir+memb+'/output/'
+  ensdir=tmpdir+memb+'/'+case_str+'/'
   nens=n_elements(memb)
 
   ;RAW DOMAIN FILES

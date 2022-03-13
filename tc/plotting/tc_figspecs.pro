@@ -108,6 +108,25 @@ if ~keyword_set(idcomp) then idcomp=0
     if keyword_set(setmin) then min=setmin
     levels=findgen(ncols)/(ncols-1)*(max-min)+min
 
+;VAR = strat
+  endif else if var_str eq 'strat' then begin
+
+    cbar_format='(i4)'
+    cbar_tag='[ 1-C, 2-S, 3-o ]'
+    title='Morph'
+    icbar=1
+
+    scale=1.
+
+    col_table=11
+
+    ndivs=2
+
+    ncols=3
+    colors=[254,254/2,254./3]
+
+    levels=indgen(ncols)+1
+
 ;VAR = TQC
   endif else if var_str eq 'tqc' then begin
 

@@ -10,13 +10,15 @@ pro run_enstc_maps
 tcname='haiyan'
 case_str='ctl';'ncrf';'ctl'
 
-;if tcname eq 'maria' then begin
+if tcname eq 'maria' then begin
 ;  tcyear='2017'
 ;  hurdat=read_hurdat(tcname,tcyear)
-;endif else if tcname eq 'haiyan' then begin
+  nt_ctl=145
+endif else if tcname eq 'haiyan' then begin
 ;  tcyear='2013'
 ;  hurdat=read_jtwcdat(tcname)
-;endif
+  nt_ctl=169
+endif
 
 dom='d02'
 tc_ens_config, tcname, case_str, dom, dirs=dirs, dims=dims, vars=vars;, /verbose
@@ -33,8 +35,8 @@ allvars=['wspd','RAINNC','rainrate','avor','slp','lh','th_e','olr','pw']
 allvars=['olr'];,'pw','olr','pw']
 ;allvars=['rainrate']
 allvars=['avor']
-allvars=['slp']
-allvars=['ngms']
+allvars=['strat'] ; varout = 1 if convective, = 2 if stratiform, = 3 other, = 0 if no rain
+;allvars=['ngms']
 ;allvars=['wspd']
 ;allvars=['z']
 nvsel=n_elements(allvars)
@@ -59,7 +61,7 @@ nvsel=n_elements(allvars)
   npd=dims.npd
   nhrs=1.*nt_full*npd/24.
   nd=(1.*nhrs-(nhrs mod 24))/24.
-  time_hrs=indgen(nhrs)
+  time_hrs=indgen(nt_ctl)
 
 
 ;----READ VARS--------------------
@@ -83,9 +85,9 @@ for ic=0,0 do begin
   print,'Memb: ',ic+1
 
     i_nt=nt_full
-    it_test=indgen(i_nt)+nt_full-i_nt
-    i_nt=2
-    it_test=96
+    offset=0
+    if strmatch(case_str,'ncrf') then offset=36
+    it_test=indgen(i_nt)+offset
 
 ;IVAR LOOP
 for ivar_sel=0,nvsel-1 do begin
@@ -232,7 +234,8 @@ print,'VAR: ',var_str
 
   endif else begin
 
-    if var_str eq 'rainrate' then iv_str=var_str else iv_str=strupcase(var_str)
+    if var_str eq 'rainrate' or var_str eq 'strat' then iv_str=var_str $
+    else iv_str=strupcase(var_str)
 
     iv=where(vars.vars eq iv_str)
     file=dirs.files_post[ic,iv]
@@ -374,11 +377,10 @@ print,var_str
   ;LOOP THROUGH TIMES
 
   skip=12
-  t1=72
-;  for it=24,120,skip do begin
+  t1=70
+ ; for it=24,120,skip do begin
 ;  for it=96,120,6 do begin
-  for it=0,0 do begin
-;  for it=t1,t1 do begin
+  for it=t1,t1 do begin
 
   if var_str eq 'rainrate' then itop-=1
 
@@ -434,7 +436,7 @@ print,var_str
         ivar=smooth(temporary(ivar),ismooth,/edge_truncate,/nan)
     endif
 
-    figname=figdir+tim_tag+'_'+var_str+'_'+dirs.memb[ic]
+    figname=figdir+tim_tag+'_'+var_str+'_'+case_str+'_'+dirs.memb[ic]
     if var_str eq 'avor' then figname+='_'+string(psel,format='(i3.3)')
     figspecs.figname=figname
     print,figname
@@ -460,7 +462,7 @@ print,var_str
       itcloc=itcloc, shr=ishr
 ;    wrf_tc_map_plot, dirs, ivar, dims.lon, dims.lat, figspecs, wind=wind, loc_pmin=reform(loc[ic,*,it_test[it_sel]]), itcloc=itcloc, shr=ishr
 ;    wrf_tc_smoothcomp_map, dirs, ivar, ivar_sm, dims.lon, dims.lat, figspecs, wind=wind, loc_pmin=reform(loc[ic,*,it_test[it_sel]]), cvar=filler, itcloc=itcloc, shr=ishr
-exit
+
   endfor
 
 endfor ; icase

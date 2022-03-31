@@ -59,7 +59,7 @@ nvsel=n_elements(allvars)
   time=dims.time
   nt_full=dims.nt
   npd=dims.npd
-  nhrs=1.*nt_full*npd/24.
+  nhrs=1.*nt_ctl*npd/24.
   nd=(1.*nhrs-(nhrs mod 24))/24.
   time_hrs=indgen(nt_ctl)
 

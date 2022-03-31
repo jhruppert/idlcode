@@ -4,7 +4,13 @@
 ; James Ruppert
 ; 12/20/21
 ; 
-pro tc_ens_config, tcname, case_str, dom, dirs=dirs, dims=dims, vars=vars, verbose=verbose
+pro tc_ens_config, tcname, case_str, dom, imember=imember, dirs=dirs, dims=dims, vars=vars, verbose=verbose
+
+imembset=0
+if keyword_set(imember) then begin
+  imembset=1
+  imemb=imember-1
+endif
 
 ;DIRECTORIES
 
@@ -19,41 +25,55 @@ pro tc_ens_config, tcname, case_str, dom, dirs=dirs, dims=dims, vars=vars, verbo
 ;for ic=0,nc-1 do begin
 
   tmpdir=dirs.scdir+'wrfenkf/ensemble/'+tcname+'/'
-  spawn,'ls '+tmpdir+' | grep memb',memb
+  spawn,'ls '+tmpdir+' | grep memb',memb,err_result
 
-print,'MEMBERS: ',memb
+;print,'MEMBERS: ',memb
 
   ensdir=tmpdir+memb+'/'+case_str+'/'
   nens=n_elements(memb)
 
+  if imembset then icheck=imemb else icheck=0
+
   ;RAW DOMAIN FILES
 ;  dom='d02'
-  spawn,'ls '+ensdir[0]+'wrfout_'+dom+'_20*',d02
+  spawn,'ls '+ensdir[icheck]+'wrfout_'+dom+'_20*',d02,err_result
   nt=n_elements(d02)
   files_raw=strarr(nens,nt)
 ;  for ic=0,nc-1 do $
+  if imembset then begin
+      spawn,'ls '+ensdir[imemb]+'wrfout_'+dom+'_20*',fils,err_result
+      nfils=n_elements(fils)
+      files_raw[imemb,0:nfils-1]=fils
+  endif else begin
   for imemb=0,nens-1 do begin
 ;    for i=3,3 do begin
-      spawn,'ls '+ensdir[imemb]+'wrfout_'+dom+'_20*',fils
+      spawn,'ls '+ensdir[imemb]+'wrfout_'+dom+'_20*',fils,err_result
       nfils=n_elements(fils)
       files_raw[imemb,0:nfils-1]=fils
 ;    endfor
   endfor
+  endelse
 
   ;POST FILES
-  spawn,'ls '+ensdir[0]+'post/'+dom+'/*.nc',fils
+  spawn,'ls '+ensdir[icheck]+'post/'+dom+'/*.nc',fils,err_result
   nvar=n_elements(fils)
   files_post=strarr(nens,nvar)
 ;  for ic=0,nc-1 do $
+  if imembset then begin
+    spawn,'ls '+ensdir[imemb]+'post/'+dom+'/*.nc',fils,err_result
+    n_fil=n_elements(fils)
+    files_post[imemb,0:n_fil-1]=fils
+  endif else begin
   for imemb=0,nens-1 do begin
-    spawn,'ls '+ensdir[imemb]+'post/'+dom+'/*.nc',fils
+    spawn,'ls '+ensdir[imemb]+'post/'+dom+'/*.nc',fils,err_result
     n_fil=n_elements(fils)
     files_post[imemb,0:n_fil-1]=fils
   endfor
+  endelse
 
 ;VARIABLES
 
-  spawn,'ls '+ensdir[0]+'post/'+dom+'/*.nc',tmp
+  spawn,'ls '+ensdir[icheck]+'post/'+dom+'/*.nc',tmp,err_result
   vars=strarr(nvar)
   for iv=0,nvar-1 do begin
     tmp2=strsplit(tmp[iv],'/',/extract)
@@ -88,14 +108,28 @@ endif
 
 ;DIMENSIONS
 
-  tstr=strmid(files_raw[0,0],7+11,13,/reverse)
-  yy=strmid(tstr,0,4) & mm=strmid(tstr,5,2) & dd=strmid(tstr,8,2)
-  hh0=strmid(tstr,11,2) & nn=strmid(tstr,14,2)
+;MANUAL OVEIRRIDES FOR TIME DIMENSIONALITY
+  if tcname eq 'haiyan' then begin
+    if case_str eq 'ctl' then begin
+      tstr0='2013-11-01_00'
+      tstr1='2013-11-08_00'
+    endif else if case_str eq 'ncrf' then begin
+      tstr0='2013-11-02_12'
+      tstr1='2013-11-08_00'
+    endif else if case_str eq 'crfon' then begin
+      tstr0='2013-11-03_12'
+      tstr1='2013-11-04_12'
+    endif else message,'Set case name!'
+  endif
+
+;  tstr0=strmid(files_raw[0,0],7+11,13,/reverse)
+  yy=strmid(tstr0,0,4) & mm=strmid(tstr0,5,2) & dd=strmid(tstr0,8,2)
+  hh0=strmid(tstr0,11,2) & nn=strmid(tstr0,14,2)
   tim0=julday(mm,dd,yy,hh0,nn,0)
 
-  tstr=strmid(files_raw[0,nt-1],7+11,13,/reverse)
-  yy=strmid(tstr,0,4) & mm=strmid(tstr,5,2) & dd=strmid(tstr,8,2)
-  hh2=strmid(tstr,11,2) & nn=strmid(tstr,14,2)
+;  tstr1=strmid(files_raw[0,nt-1],7+11,13,/reverse)
+  yy=strmid(tstr1,0,4) & mm=strmid(tstr1,5,2) & dd=strmid(tstr1,8,2)
+  hh2=strmid(tstr1,11,2) & nn=strmid(tstr1,14,2)
   timend=julday(mm,dd,yy,hh2,nn,0)
 
   ;ASSUMING 1-HOURLY OUTPUT
@@ -103,16 +137,18 @@ endif
   time=timegen(nt,start=tim0,final=timend,step_size=1,units='H')
 
   ifil=where(vars.vars eq 'T',count)
-  if count ne 0 then pres=read_nc_var(files_post[0,ifil],'pres') $; deg
+  if imembset then icheck=imemb else icheck=0
+
+  if count ne 0 then pres=read_nc_var(files_post[icheck,ifil],'pres') $; deg
   else pres=!values.f_nan
 
   np=n_elements(pres)
 
-  lon=read_nc_var(files_raw[0,0],'XLONG') ; deg
+  lon=read_nc_var(files_raw[icheck,0],'XLONG') ; deg
   lon=reform(lon[*,0])
   nx=n_elements(lon)
   
-  lat=read_nc_var(files_raw[0,0],'XLAT') ; deg
+  lat=read_nc_var(files_raw[icheck,0],'XLAT') ; deg
   lat=reform(lat[0,*])
   ny=n_elements(lat)
   
